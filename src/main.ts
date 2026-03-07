@@ -7,8 +7,10 @@ import type {
 } from "./types";
 import { openDB } from "./utils";
 
-const fileAInput = document.getElementById("fileA") as HTMLInputElement;
-const fileBInput = document.getElementById("fileB") as HTMLInputElement;
+const addBtn = document.getElementById("add-files-btn") as HTMLButtonElement;
+const fileInput = document.getElementById("file-input") as HTMLInputElement;
+const fileList = document.getElementById("file-list") as HTMLUListElement;
+
 const compareBtn = document.getElementById("compareBtn") as HTMLButtonElement;
 const statusEl = document.getElementById("status") as HTMLPreElement;
 
@@ -83,22 +85,20 @@ const initMessage: MainToWorkerMessage = {
 worker.postMessage(initMessage);
 
 compareBtn.addEventListener("click", () => {
-  const fileA = fileAInput.files?.[0];
-  const fileB = fileBInput.files?.[0];
-
-  if (!fileA || !fileB) {
-    alert("Please select both files.");
-    return;
-  }
-
-  const startMessage: MainToWorkerMessage = {
-    type: "START",
-    payload: {
-      files: [fileA, fileB]
-    }
-  };
-
-  worker.postMessage(startMessage);
+  // TODO
+  // const fileA = fileAInput.files?.[0];
+  // const fileB = fileBInput.files?.[0];
+  // if (!fileA || !fileB) {
+  //   alert("Please select both files.");
+  //   return;
+  // }
+  // const startMessage: MainToWorkerMessage = {
+  //   type: "START",
+  //   payload: {
+  //     files: [fileA, fileB]
+  //   }
+  // };
+  // worker.postMessage(startMessage);
 });
 
 function renderRows(rows: DiffRow[]) {
@@ -208,4 +208,58 @@ function setupPagination() {
       loadPage(currentPage + 1);
     }
   });
+}
+
+const files = new Map<string, File>();
+
+function fileId(file: File) {
+  return `${file.name}_${file.size}_${file.lastModified}`;
+}
+
+addBtn.addEventListener("click", () => {
+  fileInput.click();
+});
+
+fileInput.addEventListener("change", () => {
+  const selected = fileInput.files;
+  if (!selected) return;
+
+  for (const file of selected) {
+    const id = fileId(file);
+
+    if (!files.has(id)) {
+      files.set(id, file);
+    }
+  }
+
+  renderFiles();
+
+  // allow selecting same file again later
+  fileInput.value = "";
+});
+
+function renderFiles() {
+  fileList.innerHTML = "";
+
+  for (const [id, file] of files) {
+    const li = document.createElement("li");
+    li.className = "flex items-center justify-between py-2";
+
+    const name = document.createElement("span");
+    name.textContent = file.name;
+
+    const remove = document.createElement("button");
+    remove.textContent = "remove";
+    remove.className = "text-red-500 text-xs";
+
+    remove.onclick = () => {
+      files.delete(id);
+      renderFiles();
+    };
+
+    li.appendChild(name);
+    li.appendChild(remove);
+
+    fileList.appendChild(li);
+  }
 }
