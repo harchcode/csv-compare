@@ -1,0 +1,11 @@
+@import "tailwindcss";
+
+table {
+  border-spacing: 0;
+}
+thead th {
+  position: sticky;
+  top: 0;
+  background: white;
+  z-index: 20;
+}

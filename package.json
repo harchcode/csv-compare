@@ -1,0 +1,30 @@
+{
+  "name": "csv-compare",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "lint": "eslint",
+    "format": "prettier --write .",
+    "update-all": "ncu -u"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^25.3.3",
+    "eslint": "^10.0.2",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.4.0",
+    "npm-check-updates": "^19.6.3",
+    "prettier": "^3.8.1",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.56.1",
+    "vite": "^7.3.1"
+  },
+  "dependencies": {
+    "@tailwindcss/vite": "^4.2.1",
+    "tailwindcss": "^4.2.1"
+  }
+}

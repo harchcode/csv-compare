@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>CSV Diff</title>
+  </head>
+
+  <body class="bg-gray-50 text-gray-800">
+    <main class="max-w-6xl mx-auto px-6 py-8">
+      <!-- Header -->
+      <header class="mb-8 flex items-baseline gap-x-4">
+        <h1 class="text-3xl font-semibold tracking-tight">
+          CSV Comparator Tool
+        </h1>
+        <p class="text-sm text-gray-500 mt-1">
+          Compare multiple CSV files directly in your browser.
+        </p>
+      </header>
+
+      <!-- File Selection -->
+      <section class="bg-white border p-5 mb-6">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="font-medium text-gray-700">Files</h2>
+
+          <button
+            id="add-files-btn"
+            class="px-4 py-2 text-sm font-medium border bg-gray-100 hover:bg-gray-200"
+          >
+            Add file(s)
+          </button>
+
+          <input
+            type="file"
+            id="file-input"
+            accept=".csv"
+            multiple
+            class="hidden"
+          />
+        </div>
+
+        <!-- Selected files list -->
+        <ul id="file-list" class="divide-y text-sm"></ul>
+      </section>
+
+      <!-- Compare Button -->
+      <div class="mb-6">
+        <button
+          id="compareBtn"
+          class="px-5 py-2 bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+        >
+          Start comparison
+        </button>
+      </div>
+
+      <!-- Status -->
+      <pre
+        id="status"
+        class="text-sm text-gray-600 mb-6 whitespace-pre-wrap"
+      ></pre>
+
+      <!-- Table -->
+      <div class="border bg-white">
+        <table
+          id="diff-table"
+          class="min-w-full text-sm border-collapse"
+        ></table>
+      </div>
+
+      <!-- Pagination -->
+      <div
+        id="pagination"
+        class="sticky bottom-0 bg-gray-50 border-t-2 py-3 -mt-0.5"
+      >
+        <div class="max-w-6xl mx-auto px-6 flex items-center gap-4">
+          <button
+            id="prev-btn"
+            class="px-3 py-1 border rounded bg-gray-100 hover:bg-gray-200"
+          >
+            Prev
+          </button>
+
+          <span id="page-info" class="text-sm text-gray-600"></span>
+
+          <button
+            id="next-btn"
+            class="px-3 py-1 border rounded bg-gray-100 hover:bg-gray-200"
+          >
+            Next
+          </button>
+        </div>
+      </div>
+    </main>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
