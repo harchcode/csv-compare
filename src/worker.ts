@@ -8,7 +8,7 @@ import type {
 } from "./types";
 import { openDB } from "./utils";
 
-const ROW_BATCH_SIZE = 2000;
+const ROW_BATCH_SIZE = 2048;
 
 let db: IDBDatabase | null = null;
 
@@ -194,6 +194,11 @@ async function compareFiles(files: File[]) {
   tx.objectStore("meta").clear();
 
   await waitTx(tx);
+
+  self.postMessage({
+    type: "PROGRESS",
+    payload: { processedRows: 0, progress: 0 }
+  });
 
   const fileSizes = files.map(f => f.size);
   const bytesRead = new Array(files.length).fill(0);

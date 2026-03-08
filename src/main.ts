@@ -16,6 +16,7 @@ const statusEl = document.getElementById("status") as HTMLPreElement;
 
 const PAGE_SIZE = 200;
 
+const files = new Map<string, File>();
 let currentPage = 0;
 let totalRows = 0;
 let totalPages = 0;
@@ -42,7 +43,7 @@ async function initUI() {
 
   setupPagination();
 
-  await loadPage(0);
+  await loadPageAndUpdatePaginationUI(0);
 }
 
 initUI();
@@ -59,17 +60,37 @@ worker.onmessage = (event: MessageEvent<WorkerToMainMessage>) => {
       statusEl.textContent = "Worker ready.";
       break;
 
-    case "PROGRESS":
-      statusEl.textContent = `Processed rows: ${msg.payload.processedRows}`;
+    case "PROGRESS": {
       console.log("Progress:", msg.payload);
+      statusEl.textContent = `Processed rows: ${msg.payload.processedRows}`;
+
+      if (msg.payload.processedRows === 0) {
+        renderRows([]);
+      }
+
+      const newTotalPages = Math.ceil(msg.payload.processedRows / PAGE_SIZE);
+
+      if (currentPage >= totalPages - 1 && currentPage < newTotalPages) {
+        loadPage(currentPage);
+      }
+
+      totalRows = msg.payload.processedRows;
+      totalPages = newTotalPages;
+      updatePaginationUI();
+
       break;
+    }
 
     case "COMPLETE":
       statusEl.textContent = `Done. Total compared: ${msg.payload.totalCompared}`;
+      compareBtn.disabled = false;
+
       break;
 
     case "ERROR":
       statusEl.textContent = `Error: ${msg.payload.message}`;
+      compareBtn.disabled = false;
+
       break;
   }
 };
@@ -85,20 +106,19 @@ const initMessage: MainToWorkerMessage = {
 worker.postMessage(initMessage);
 
 compareBtn.addEventListener("click", () => {
-  // TODO
-  // const fileA = fileAInput.files?.[0];
-  // const fileB = fileBInput.files?.[0];
-  // if (!fileA || !fileB) {
-  //   alert("Please select both files.");
-  //   return;
-  // }
-  // const startMessage: MainToWorkerMessage = {
-  //   type: "START",
-  //   payload: {
-  //     files: [fileA, fileB]
-  //   }
-  // };
-  // worker.postMessage(startMessage);
+  if (files.size < 2) {
+    alert("Please select at least 2 files.");
+    return;
+  }
+
+  compareBtn.disabled = true;
+  const startMessage: MainToWorkerMessage = {
+    type: "START",
+    payload: {
+      files: Array.from(files.values())
+    }
+  };
+  worker.postMessage(startMessage);
 });
 
 function renderRows(rows: DiffRow[]) {
@@ -188,6 +208,13 @@ function updatePaginationUI() {
 
 async function loadPage(page: number) {
   const rows = await getPage(page);
+  currentPage = page;
+
+  renderRows(rows);
+}
+
+async function loadPageAndUpdatePaginationUI(page: number) {
+  const rows = await getPage(page);
 
   currentPage = page;
 
@@ -199,18 +226,16 @@ async function loadPage(page: number) {
 function setupPagination() {
   document.getElementById("prev-btn")!.addEventListener("click", () => {
     if (currentPage > 0) {
-      loadPage(currentPage - 1);
+      loadPageAndUpdatePaginationUI(currentPage - 1);
     }
   });
 
   document.getElementById("next-btn")!.addEventListener("click", () => {
     if (currentPage < totalPages - 1) {
-      loadPage(currentPage + 1);
+      loadPageAndUpdatePaginationUI(currentPage + 1);
     }
   });
 }
-
-const files = new Map<string, File>();
 
 function fileId(file: File) {
   return `${file.name}_${file.size}_${file.lastModified}`;
