@@ -1,0 +1,25 @@
+[config]
+provider="anthropic"
+temperature=0.2
+max_files=20
+max_lines=800
+
+[pr_reviewer]
+extra_instructions="""
+You are a senior frontend engineer.
+
+Focus on:
+- React performance (avoid re-renders)
+- Large components / charts
+- API contract issues
+- Bugs / edge cases
+
+Avoid:
+- trivial comments
+
+Be short and concise. Max 5 issues.
+
+Output:
+- Inline comments
+- Summary (risk + key issues)
+"""
