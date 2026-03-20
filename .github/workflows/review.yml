@@ -1,0 +1,41 @@
+name: PR Agent
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  review-haiku:
+    if: |
+      github.event.issue.pull_request &&
+      contains(github.event.comment.body, 'review pls') &&
+      github.event.comment.user.login == 'harchcode'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Codium-ai/pr-agent@main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ANTHROPIC.KEY: ${{ secrets.CLAUDE_API_KEY }}
+          CONFIG__MODEL: ${{ vars.PR_REVIEW_MODEL }}
+          CONFIG__CUSTOM_MODEL_MAX_TOKENS: 8000
+
+  review-sonnet:
+    if: |
+      github.event.issue.pull_request &&
+      contains(github.event.comment.body, 'pro review pls') &&
+      github.event.comment.user.login == 'harchcode'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Codium-ai/pr-agent@main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ANTHROPIC.KEY: ${{ secrets.CLAUDE_API_KEY }}
+          CONFIG__MODEL: ${{ vars.PR_REVIEW_PRO_MODEL }}
+          CONFIG__CUSTOM_MODEL_MAX_TOKENS: 16000
