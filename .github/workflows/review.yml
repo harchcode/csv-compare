@@ -21,7 +21,7 @@ jobs:
       - uses: Codium-ai/pr-agent@main
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ANTHROPIC_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
+          ANTHROPIC.KEY: ${{ secrets.CLAUDE_API_KEY }}
           CONFIG__MODEL: ${{ vars.PR_REVIEW_MODEL }}
           CONFIG__CUSTOM_MODEL_MAX_TOKENS: 8000
 
@@ -36,6 +36,6 @@ jobs:
       - uses: Codium-ai/pr-agent@main
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ANTHROPIC_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
+          ANTHROPIC.KEY: ${{ secrets.CLAUDE_API_KEY }}
           CONFIG__MODEL: ${{ vars.PR_REVIEW_PRO_MODEL }}
           CONFIG__CUSTOM_MODEL_MAX_TOKENS: 16000
