@@ -3,6 +3,7 @@ provider="anthropic"
 temperature=0.2
 max_files=20
 max_lines=800
+fallback_models=[]
 
 [pr_reviewer]
 extra_instructions="""
