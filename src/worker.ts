@@ -20,7 +20,7 @@ self.onmessage = async (event: MessageEvent<MainToWorkerMessage>) => {
   try {
     switch (msg.type) {
       case "INIT":
-        handleInit(msg.payload);
+        handleInit();
         break;
 
       case "START":
@@ -35,7 +35,7 @@ self.onmessage = async (event: MessageEvent<MainToWorkerMessage>) => {
   }
 };
 
-async function handleInit(payload: { mode: "CSV_DIFF" }) {
+async function handleInit() {
   try {
     db = await openDB();
 
@@ -210,7 +210,8 @@ async function compareFiles(files: File[]) {
   // --- read headers ---
   const headers: string[][] = [];
 
-  for (const it of iterators) {
+  for (let i = 0; i < iterators.length; i++) {
+    const it = iterators[i];
     const { value, done } = await it.next();
 
     if (done) {
@@ -218,6 +219,9 @@ async function compareFiles(files: File[]) {
     }
 
     headers.push(value.split(","));
+
+    // TODO: this is not accurate for string containing multi-byte characters.
+    bytesRead[i] += value.length;
   }
 
   console.log("headers:", headers);
@@ -229,6 +233,15 @@ async function compareFiles(files: File[]) {
 
   // --- find common columns ---
   const commonColumns = getCommonColumns(headers);
+
+  // send progress update
+  const headerProgress = Math.max(...bytesRead.map((b, i) => b / fileSizes[i]));
+
+  self.postMessage({
+    type: "HEADER",
+    payload: { headers: commonColumns, progress: headerProgress }
+  });
+
   const columnIndexesPerFile = buildColumnIndexes(commonColumns, columnMaps);
 
   console.log("commonColumns:", commonColumns);
@@ -253,6 +266,8 @@ async function compareFiles(files: File[]) {
       // TODO: modify to handle quoted CSV values with commas, newlines, etc.
       const value = nextRows[i].value as string;
       rows[i] = value.split(",");
+
+      // TODO: this is not accurate for string containing multi-byte characters.
       bytesRead[i] += value.length;
     }
 

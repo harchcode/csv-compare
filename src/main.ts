@@ -20,27 +20,21 @@ const files = new Map<string, File>();
 let currentPage = 0;
 let totalRows = 0;
 let totalPages = 0;
+let headers: string[] = [];
 
 async function initUI() {
   const meta = await getMeta();
 
-  totalRows = meta.comparedRows;
-
+  headers = meta?.commonColumns ?? [];
+  totalRows = meta?.comparedRows ?? 0;
   totalPages = Math.ceil(totalRows / PAGE_SIZE);
 
   const table = document.getElementById("diff-table")!;
   table.innerHTML = `
-    <thead class="sticky top-px bg-white z-10 shadow-[0_-1px_0_rgba(0,0,0,1),0_1px_0_rgba(0,0,0,1)]">
-      <tr>
-        <th class="border px-2 py-1 text-sm">Column 1</th>
-        <th class="border px-2 py-1 text-sm">Column 2</th>
-        <th class="border px-2 py-1 text-sm">Column 2</th>
-        <th class="border px-2 py-1 text-sm">Column 2</th>
-        <th class="border px-2 py-1 text-sm">Column 2</th>
-      </tr>
-    </thead>
+    <thead class="sticky top-px bg-white z-10 shadow-[0_-1px_0_rgba(0,0,0,1),0_1px_0_rgba(0,0,0,1)]"></thead>
     <tbody></tbody>`;
 
+  renderHeaders(headers);
   setupPagination();
 
   await loadPageAndUpdatePaginationUI(0);
@@ -59,6 +53,13 @@ worker.onmessage = (event: MessageEvent<WorkerToMainMessage>) => {
     case "READY":
       statusEl.textContent = "Worker ready.";
       break;
+
+    case "HEADER": {
+      headers = msg.payload.headers;
+      renderHeaders(headers);
+
+      break;
+    }
 
     case "PROGRESS": {
       console.log("Progress:", msg.payload);
@@ -120,6 +121,15 @@ compareBtn.addEventListener("click", () => {
   };
   worker.postMessage(startMessage);
 });
+
+function renderHeaders(headers: string[]) {
+  const thead = document.querySelector("#diff-table thead")!;
+  thead.innerHTML = `
+    <tr>
+      ${headers.map(h => `<th class="border px-2 py-1 text-sm">${h}</th>`).join("")}
+    </tr>
+  `;
+}
 
 function renderRows(rows: DiffRow[]) {
   const tbody = document.querySelector("#diff-table tbody")!;
