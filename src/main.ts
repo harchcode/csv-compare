@@ -133,7 +133,7 @@ function renderHeaders(headers: string[]) {
 
 function renderRows(rows: DiffRow[]) {
   const tbody = document.querySelector("#diff-table tbody")!;
-  tbody.innerHTML = "";
+  tbody.replaceChildren();
 
   for (const row of rows) {
     const tr = document.createElement("tr");
@@ -224,11 +224,7 @@ async function loadPage(page: number) {
 }
 
 async function loadPageAndUpdatePaginationUI(page: number) {
-  const rows = await getPage(page);
-
-  currentPage = page;
-
-  renderRows(rows);
+  await loadPage(page);
 
   updatePaginationUI();
 }
@@ -274,7 +270,7 @@ fileInput.addEventListener("change", () => {
 });
 
 function renderFiles() {
-  fileList.innerHTML = "";
+  fileList.replaceChildren();
 
   for (const [id, file] of files) {
     const li = document.createElement("li");
@@ -286,11 +282,7 @@ function renderFiles() {
     const remove = document.createElement("button");
     remove.textContent = "remove";
     remove.className = "text-red-500 text-xs";
-
-    remove.onclick = () => {
-      files.delete(id);
-      renderFiles();
-    };
+    remove.dataset.removeFileId = id;
 
     li.appendChild(name);
     li.appendChild(remove);
@@ -298,3 +290,15 @@ function renderFiles() {
     fileList.appendChild(li);
   }
 }
+
+fileList.addEventListener("click", e => {
+  const target = e.target as HTMLElement;
+  // Use a data attribute to find the button and its associated file ID
+  if (target.matches("button[data-remove-file-id]")) {
+    const fileId = target.dataset.removeFileId;
+    if (fileId) {
+      files.delete(fileId);
+      target.parentElement?.remove();
+    }
+  }
+});
