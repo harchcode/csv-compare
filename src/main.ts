@@ -7,40 +7,37 @@ import type {
 } from "./types";
 import { openDB } from "./utils";
 
-const fileAInput = document.getElementById("fileA") as HTMLInputElement;
-const fileBInput = document.getElementById("fileB") as HTMLInputElement;
+const addBtn = document.getElementById("add-files-btn") as HTMLButtonElement;
+const fileInput = document.getElementById("file-input") as HTMLInputElement;
+const fileList = document.getElementById("file-list") as HTMLUListElement;
+
 const compareBtn = document.getElementById("compareBtn") as HTMLButtonElement;
 const statusEl = document.getElementById("status") as HTMLPreElement;
 
 const PAGE_SIZE = 200;
 
+const files = new Map<string, File>();
 let currentPage = 0;
 let totalRows = 0;
 let totalPages = 0;
+let headers: string[] = [];
 
 async function initUI() {
   const meta = await getMeta();
 
-  totalRows = meta.comparedRows;
-
+  headers = meta?.commonColumns ?? [];
+  totalRows = meta?.comparedRows ?? 0;
   totalPages = Math.ceil(totalRows / PAGE_SIZE);
 
   const table = document.getElementById("diff-table")!;
   table.innerHTML = `
-    <thead class="sticky top-px bg-white z-10 shadow-[0_-1px_0_rgba(0,0,0,1),0_1px_0_rgba(0,0,0,1)]">
-      <tr>
-        <th class="border px-2 py-1 text-sm">Column 1</th>
-        <th class="border px-2 py-1 text-sm">Column 2</th>
-        <th class="border px-2 py-1 text-sm">Column 2</th>
-        <th class="border px-2 py-1 text-sm">Column 2</th>
-        <th class="border px-2 py-1 text-sm">Column 2</th>
-      </tr>
-    </thead>
+    <thead class="sticky top-px bg-white z-10 shadow-[0_-1px_0_rgba(0,0,0,1),0_1px_0_rgba(0,0,0,1)]"></thead>
     <tbody></tbody>`;
 
+  renderHeaders(headers);
   setupPagination();
 
-  await loadPage(0);
+  await loadPageAndUpdatePaginationUI(0);
 }
 
 initUI();
@@ -57,17 +54,44 @@ worker.onmessage = (event: MessageEvent<WorkerToMainMessage>) => {
       statusEl.textContent = "Worker ready.";
       break;
 
-    case "PROGRESS":
-      statusEl.textContent = `Processed rows: ${msg.payload.processedRows}`;
-      console.log("Progress:", msg.payload);
+    case "HEADER": {
+      headers = msg.payload.headers;
+      renderHeaders(headers);
+
       break;
+    }
+
+    case "PROGRESS": {
+      console.log("Progress:", msg.payload);
+      statusEl.textContent = `Processed rows: ${msg.payload.processedRows}`;
+
+      if (msg.payload.processedRows === 0) {
+        renderRows([]);
+      }
+
+      const newTotalPages = Math.ceil(msg.payload.processedRows / PAGE_SIZE);
+
+      if (currentPage >= totalPages - 1 && currentPage < newTotalPages) {
+        loadPage(currentPage);
+      }
+
+      totalRows = msg.payload.processedRows;
+      totalPages = newTotalPages;
+      updatePaginationUI();
+
+      break;
+    }
 
     case "COMPLETE":
       statusEl.textContent = `Done. Total compared: ${msg.payload.totalCompared}`;
+      compareBtn.disabled = false;
+
       break;
 
     case "ERROR":
       statusEl.textContent = `Error: ${msg.payload.message}`;
+      compareBtn.disabled = false;
+
       break;
   }
 };
@@ -83,27 +107,33 @@ const initMessage: MainToWorkerMessage = {
 worker.postMessage(initMessage);
 
 compareBtn.addEventListener("click", () => {
-  const fileA = fileAInput.files?.[0];
-  const fileB = fileBInput.files?.[0];
-
-  if (!fileA || !fileB) {
-    alert("Please select both files.");
+  if (files.size < 2) {
+    alert("Please select at least 2 files.");
     return;
   }
 
+  compareBtn.disabled = true;
   const startMessage: MainToWorkerMessage = {
     type: "START",
     payload: {
-      files: [fileA, fileB]
+      files: Array.from(files.values())
     }
   };
-
   worker.postMessage(startMessage);
 });
 
+function renderHeaders(headers: string[]) {
+  const thead = document.querySelector("#diff-table thead")!;
+  thead.innerHTML = `
+    <tr>
+      ${headers.map(h => `<th class="border px-2 py-1 text-sm">${h}</th>`).join("")}
+    </tr>
+  `;
+}
+
 function renderRows(rows: DiffRow[]) {
   const tbody = document.querySelector("#diff-table tbody")!;
-  tbody.innerHTML = "";
+  tbody.replaceChildren();
 
   for (const row of rows) {
     const tr = document.createElement("tr");
@@ -188,10 +218,13 @@ function updatePaginationUI() {
 
 async function loadPage(page: number) {
   const rows = await getPage(page);
-
   currentPage = page;
 
   renderRows(rows);
+}
+
+async function loadPageAndUpdatePaginationUI(page: number) {
+  await loadPage(page);
 
   updatePaginationUI();
 }
@@ -199,13 +232,73 @@ async function loadPage(page: number) {
 function setupPagination() {
   document.getElementById("prev-btn")!.addEventListener("click", () => {
     if (currentPage > 0) {
-      loadPage(currentPage - 1);
+      loadPageAndUpdatePaginationUI(currentPage - 1);
     }
   });
 
   document.getElementById("next-btn")!.addEventListener("click", () => {
     if (currentPage < totalPages - 1) {
-      loadPage(currentPage + 1);
+      loadPageAndUpdatePaginationUI(currentPage + 1);
     }
   });
 }
+
+function fileId(file: File) {
+  return `${file.name}_${file.size}_${file.lastModified}`;
+}
+
+addBtn.addEventListener("click", () => {
+  fileInput.click();
+});
+
+fileInput.addEventListener("change", () => {
+  const selected = fileInput.files;
+  if (!selected) return;
+
+  for (const file of selected) {
+    const id = fileId(file);
+
+    if (!files.has(id)) {
+      files.set(id, file);
+    }
+  }
+
+  renderFiles();
+
+  // allow selecting same file again later
+  fileInput.value = "";
+});
+
+function renderFiles() {
+  fileList.replaceChildren();
+
+  for (const [id, file] of files) {
+    const li = document.createElement("li");
+    li.className = "flex items-center justify-between py-2";
+
+    const name = document.createElement("span");
+    name.textContent = file.name;
+
+    const remove = document.createElement("button");
+    remove.textContent = "remove";
+    remove.className = "text-red-500 text-xs";
+    remove.dataset.removeFileId = id;
+
+    li.appendChild(name);
+    li.appendChild(remove);
+
+    fileList.appendChild(li);
+  }
+}
+
+fileList.addEventListener("click", e => {
+  const target = e.target as HTMLElement;
+  // Use a data attribute to find the button and its associated file ID
+  if (target.matches("button[data-remove-file-id]")) {
+    const fileId = target.dataset.removeFileId;
+    if (fileId) {
+      files.delete(fileId);
+      target.parentElement?.remove();
+    }
+  }
+});

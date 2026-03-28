@@ -7,7 +7,7 @@ const TARGET_SIZE_MB = 5;
 const TARGET_SIZE_BYTES = TARGET_SIZE_MB * 1024 * 1024;
 
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __dirname = path.join(path.dirname(__filename), "out");
 
 const OUTPUT_PATH = path.join(__dirname, OUTPUT_FILE_NAME);
 
