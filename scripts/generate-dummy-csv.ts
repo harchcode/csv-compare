@@ -11,12 +11,13 @@ const __dirname = path.join(path.dirname(__filename), "out");
 
 const OUTPUT_PATH = path.join(__dirname, OUTPUT_FILE_NAME);
 
+fs.mkdirSync(path.dirname(OUTPUT_PATH), { recursive: true });
 const stream = fs.createWriteStream(OUTPUT_PATH);
 
 let bytesWritten = 0;
 let rowIndex = 0;
 
-const header = "id,name,email,amount,status\n";
+const header = "id,n-ame,email,amount,status\n";
 stream.write(header);
 bytesWritten += Buffer.byteLength(header);
 

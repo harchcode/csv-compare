@@ -124,11 +124,17 @@ compareBtn.addEventListener("click", () => {
 
 function renderHeaders(headers: string[]) {
   const thead = document.querySelector("#diff-table thead")!;
-  thead.innerHTML = `
-    <tr>
-      ${headers.map(h => `<th class="border px-2 py-1 text-sm">${h}</th>`).join("")}
-    </tr>
-  `;
+
+  const headerRow = document.createElement("tr");
+
+  for (const header of headers) {
+    const th = document.createElement("th");
+    th.className = "border px-2 py-1 text-sm";
+    th.textContent = header;
+    headerRow.appendChild(th);
+  }
+
+  thead.replaceChildren(headerRow);
 }
 
 function renderRows(rows: DiffRow[]) {
