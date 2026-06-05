@@ -22,12 +22,31 @@ let totalRows = 0;
 let totalPages = 0;
 let headers: string[] = [];
 
+async function clearDB() {
+  const db = await openDB();
+  return new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(["baseRows", "meta"], "readwrite");
+    tx.objectStore("baseRows").clear();
+    tx.objectStore("meta").clear();
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error);
+  });
+}
+
 async function initUI() {
   const meta = await getMeta();
 
-  headers = meta?.commonColumns ?? [];
-  totalRows = meta?.comparedRows ?? 0;
-  totalPages = Math.ceil(totalRows / PAGE_SIZE);
+  if (!meta) {
+    await clearDB();
+    headers = [];
+    totalRows = 0;
+    totalPages = 0;
+  } else {
+    headers = meta.commonColumns ?? [];
+    totalRows = meta.comparedRows ?? 0;
+    totalPages = Math.ceil(totalRows / PAGE_SIZE);
+  }
 
   const table = document.getElementById("diff-table")!;
   table.innerHTML = `
