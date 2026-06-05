@@ -169,11 +169,13 @@ function renderRows(rows: DiffRow[]) {
 
     for (const cell of row) {
       const td = document.createElement("td");
-      td.className = "border px-2 py-1 text-sm max-w-[240px] truncate";
 
       if (typeof cell === "string") {
+        td.className = "border px-2 py-1 text-sm max-w-[240px] truncate";
         td.textContent = cell;
       } else {
+        td.className =
+          "border px-2 py-1 text-sm max-w-[240px] truncate bg-amber-100";
         td.textContent = Object.entries(cell)
           .map(([v, f]) => `${v} (${f.join(",")})`)
           .join(" | ");
