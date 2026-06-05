@@ -154,6 +154,13 @@ function renderHeaders(headers: string[]) {
 
   const headerRow = document.createElement("tr");
 
+  // Row number header
+  const thNum = document.createElement("th");
+  thNum.className =
+    "border px-2 py-1 text-sm w-12 text-center text-gray-600 font-bold bg-gray-100 select-none";
+  thNum.textContent = "#";
+  headerRow.appendChild(thNum);
+
   for (const header of headers) {
     const th = document.createElement("th");
     th.className = "border px-2 py-1 text-sm";
@@ -210,8 +217,17 @@ function renderRows(rows: DiffRow[]) {
   const tbody = document.querySelector("#diff-table tbody")!;
   tbody.replaceChildren();
 
-  for (const row of rows) {
+  const startRowNumber = currentPage * PAGE_SIZE + 1;
+
+  rows.forEach((row, rowIndex) => {
     const tr = document.createElement("tr");
+
+    // Row number cell
+    const tdNum = document.createElement("td");
+    tdNum.className =
+      "border px-2 py-1 text-sm text-center text-gray-600 font-mono bg-gray-100 select-none w-12";
+    tdNum.textContent = String(startRowNumber + rowIndex);
+    tr.appendChild(tdNum);
 
     for (const cell of row) {
       const td = document.createElement("td");
@@ -261,7 +277,7 @@ function renderRows(rows: DiffRow[]) {
     }
 
     tbody.appendChild(tr);
-  }
+  });
 }
 
 async function getMeta() {
