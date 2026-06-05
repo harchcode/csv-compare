@@ -160,6 +160,17 @@ function renderHeaders(headers: string[]) {
   thead.replaceChildren(headerRow);
 }
 
+function getFileBadgeClass(index: number): string {
+  const classes = [
+    "bg-blue-100 text-blue-800 border-blue-200",
+    "bg-rose-100 text-rose-800 border-rose-200",
+    "bg-emerald-100 text-emerald-800 border-emerald-200",
+    "bg-purple-100 text-purple-800 border-purple-200",
+    "bg-amber-100 text-amber-800 border-amber-200"
+  ];
+  return classes[index % classes.length];
+}
+
 function renderRows(rows: DiffRow[]) {
   const tbody = document.querySelector("#diff-table tbody")!;
   tbody.replaceChildren();
@@ -175,10 +186,40 @@ function renderRows(rows: DiffRow[]) {
         td.textContent = cell;
       } else {
         td.className =
-          "border px-2 py-1 text-sm max-w-[240px] truncate bg-amber-100";
-        td.textContent = Object.entries(cell)
-          .map(([v, f]) => `${v} (${f.join(",")})`)
-          .join(" | ");
+          "border px-2 py-1 text-sm max-w-[240px] bg-amber-50 align-top";
+
+        const container = document.createElement("div");
+        container.className = "flex flex-col gap-1 py-0.5";
+
+        const fileValues: { fileIndex: number; value: string }[] = [];
+        for (const [value, fileIndexes] of Object.entries(cell)) {
+          for (const fileIndex of fileIndexes) {
+            fileValues.push({ fileIndex, value });
+          }
+        }
+        fileValues.sort((a, b) => a.fileIndex - b.fileIndex);
+
+        for (const { fileIndex, value } of fileValues) {
+          const rowDiv = document.createElement("div");
+          rowDiv.className = "flex items-center gap-1.5 text-xs min-w-0";
+
+          const badge = document.createElement("span");
+          badge.className = `px-1 py-0.5 rounded text-[10px] font-bold border leading-none shrink-0 ${getFileBadgeClass(fileIndex)}`;
+          badge.textContent = `F${fileIndex + 1}`;
+
+          const valSpan = document.createElement("span");
+          valSpan.className = "truncate";
+          valSpan.textContent = value === "" ? "(empty)" : value;
+          if (value === "") {
+            valSpan.className += " text-gray-400 italic";
+          }
+
+          rowDiv.appendChild(badge);
+          rowDiv.appendChild(valSpan);
+          container.appendChild(rowDiv);
+        }
+
+        td.appendChild(container);
       }
 
       tr.appendChild(td);
