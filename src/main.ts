@@ -21,6 +21,7 @@ let currentPage = 0;
 let totalRows = 0;
 let totalPages = 0;
 let headers: string[] = [];
+let isProcessing = false;
 
 async function clearDB() {
   const db = await openDB();
@@ -104,12 +105,14 @@ worker.onmessage = (event: MessageEvent<WorkerToMainMessage>) => {
     case "COMPLETE":
       statusEl.textContent = `Done. Total compared: ${msg.payload.totalCompared}`;
       compareBtn.disabled = false;
+      isProcessing = false;
 
       break;
 
     case "ERROR":
       statusEl.textContent = `Error: ${msg.payload.message}`;
       compareBtn.disabled = false;
+      isProcessing = false;
 
       break;
   }
@@ -132,6 +135,7 @@ compareBtn.addEventListener("click", () => {
   }
 
   compareBtn.disabled = true;
+  isProcessing = true;
   const startMessage: MainToWorkerMessage = {
     type: "START",
     payload: {
@@ -325,5 +329,12 @@ fileList.addEventListener("click", e => {
       files.delete(fileId);
       target.parentElement?.remove();
     }
+  }
+});
+
+window.addEventListener("beforeunload", event => {
+  if (isProcessing) {
+    event.preventDefault();
+    return "";
   }
 });
