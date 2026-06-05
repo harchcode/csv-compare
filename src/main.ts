@@ -43,10 +43,12 @@ async function initUI() {
     headers = [];
     totalRows = 0;
     totalPages = 0;
+    renderLegend(undefined);
   } else {
     headers = meta.commonColumns ?? [];
     totalRows = meta.comparedRows ?? 0;
     totalPages = Math.ceil(totalRows / PAGE_SIZE);
+    renderLegend(meta.fileNames);
   }
 
   const table = document.getElementById("diff-table")!;
@@ -136,10 +138,12 @@ compareBtn.addEventListener("click", () => {
 
   compareBtn.disabled = true;
   isProcessing = true;
+  const selectedFiles = Array.from(files.values());
+  renderLegend(selectedFiles.map(f => f.name));
   const startMessage: MainToWorkerMessage = {
     type: "START",
     payload: {
-      files: Array.from(files.values())
+      files: selectedFiles
     }
   };
   worker.postMessage(startMessage);
@@ -169,6 +173,37 @@ function getFileBadgeClass(index: number): string {
     "bg-amber-100 text-amber-800 border-amber-200"
   ];
   return classes[index % classes.length];
+}
+
+function renderLegend(fileNames: string[] | undefined) {
+  const legendContainer = document.getElementById("diff-legend")!;
+  if (!fileNames || fileNames.length === 0) {
+    legendContainer.replaceChildren();
+    legendContainer.classList.add("hidden");
+    return;
+  }
+
+  legendContainer.classList.remove("hidden");
+  legendContainer.replaceChildren();
+
+  fileNames.forEach((name, index) => {
+    const item = document.createElement("div");
+    item.className =
+      "flex items-center gap-1.5 bg-gray-50 border px-2 py-1 rounded text-xs font-medium";
+
+    const badge = document.createElement("span");
+    badge.className = `px-1 py-0.5 rounded text-[10px] font-bold border leading-none shrink-0 ${getFileBadgeClass(index)}`;
+    badge.textContent = `F${index + 1}`;
+
+    const fileNameSpan = document.createElement("span");
+    fileNameSpan.className = "truncate max-w-[180px]";
+    fileNameSpan.textContent = name;
+    fileNameSpan.title = name;
+
+    item.appendChild(badge);
+    item.appendChild(fileNameSpan);
+    legendContainer.appendChild(item);
+  });
 }
 
 function renderRows(rows: DiffRow[]) {

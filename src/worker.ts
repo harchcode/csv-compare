@@ -470,7 +470,8 @@ async function compareFiles(files: File[]) {
   const meta = {
     fileCount: files.length,
     commonColumns,
-    comparedRows: rowIndex
+    comparedRows: rowIndex,
+    fileNames: files.map(f => f.name)
   };
 
   metaStore.put(meta, "session");

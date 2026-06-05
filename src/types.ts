@@ -27,6 +27,7 @@ export type DiffMeta = {
   fileCount: number;
   commonColumns: string[];
   comparedRows: number;
+  fileNames?: string[];
 };
 
 export type ColumnIndexMap = Record<string, number>;
