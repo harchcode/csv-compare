@@ -303,8 +303,6 @@ function renderRows(rows: DiffRow[]) {
     bodyContent.style.height = `${totalGridHeight + 32}px`;
   }
 
-  window.scrollTo({ top: 0 });
-
   renderVirtualGrid();
 }
 
