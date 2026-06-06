@@ -23,10 +23,18 @@ const nextBtn = document.getElementById("next-btn") as HTMLButtonElement;
 const lastBtn = document.getElementById("last-btn") as HTMLButtonElement;
 const pageInput = document.getElementById("page-input") as HTMLInputElement;
 const totalPagesSpan = document.getElementById("total-pages") as HTMLElement;
-const pageSizeSelect = document.getElementById("page-size-select") as HTMLSelectElement;
+const pageSizeSelect = document.getElementById(
+  "page-size-select"
+) as HTMLSelectElement;
 const rowInfoEl = document.getElementById("row-info") as HTMLElement;
 
 let PAGE_SIZE = 50;
+
+// Virtual Grid Constants
+const COL_WIDTH = 200;
+const ROW_NUM_WIDTH = 50;
+const ROW_HEIGHT_BASE = 38;
+const ROW_HEIGHT_DIFF_ITEM = 20;
 
 const files = new Map<string, File>();
 let currentPage = 0;
@@ -34,6 +42,12 @@ let totalRows = 0;
 let totalPages = 0;
 let headers: string[] = [];
 let isProcessing = false;
+
+// Virtual Grid State
+let currentRows: DiffRow[] = [];
+let rowOffsets: number[] = [0];
+let totalGridHeight = 0;
+let totalGridWidth = 0;
 
 async function clearDB() {
   const db = await openDB();
@@ -64,10 +78,15 @@ async function initUI() {
     renderLegend(meta.fileNames);
   }
 
-  const table = document.getElementById("diff-table")!;
-  table.innerHTML = `
-    <thead class="sticky top-px bg-white z-10 shadow-[0_-1px_0_rgba(0,0,0,1),0_1px_0_rgba(0,0,0,1)]"></thead>
-    <tbody></tbody>`;
+  const bodyViewport = document.getElementById("diff-body-viewport");
+  const headerViewport = document.getElementById("diff-header-viewport");
+
+  if (bodyViewport && headerViewport) {
+    bodyViewport.addEventListener("scroll", () => {
+      headerViewport.scrollLeft = bodyViewport.scrollLeft;
+      renderVirtualGrid();
+    });
+  }
 
   renderHeaders(headers);
   setupPagination();
@@ -77,10 +96,14 @@ async function initUI() {
 
 initUI();
 
-function updateStatus(text: string, state: "ready" | "processing" | "success" | "error") {
+function updateStatus(
+  text: string,
+  state: "ready" | "processing" | "success" | "error"
+) {
   statusEl.textContent = text;
-  statusDotEl.className = "w-2.5 h-2.5 rounded-full transition-all duration-300";
-  
+  statusDotEl.className =
+    "w-2.5 h-2.5 rounded-full transition-all duration-300";
+
   if (state === "ready") {
     statusDotEl.classList.add("bg-gray-300");
   } else if (state === "processing") {
@@ -113,7 +136,10 @@ worker.onmessage = (event: MessageEvent<WorkerToMainMessage>) => {
 
     case "PROGRESS": {
       console.log("Progress:", msg.payload);
-      updateStatus(`Processed rows: ${msg.payload.processedRows}`, "processing");
+      updateStatus(
+        `Processed rows: ${msg.payload.processedRows}`,
+        "processing"
+      );
 
       if (msg.payload.processedRows === 0) {
         renderRows([]);
@@ -133,7 +159,10 @@ worker.onmessage = (event: MessageEvent<WorkerToMainMessage>) => {
     }
 
     case "COMPLETE":
-      updateStatus(`Done. Total compared: ${msg.payload.totalCompared}`, "success");
+      updateStatus(
+        `Done. Total compared: ${msg.payload.totalCompared}`,
+        "success"
+      );
       compareBtn.disabled = false;
       clearBtn.disabled = false;
       isProcessing = false;
@@ -181,26 +210,22 @@ compareBtn.addEventListener("click", () => {
   worker.postMessage(startMessage);
 });
 
-function renderHeaders(headers: string[]) {
-  const thead = document.querySelector("#diff-table thead")!;
+function renderHeaders(newHeaders: string[]) {
+  headers = newHeaders;
+  totalGridWidth = ROW_NUM_WIDTH + headers.length * COL_WIDTH;
 
-  const headerRow = document.createElement("tr");
-
-  // Row number header
-  const thNum = document.createElement("th");
-  thNum.className =
-    "border px-2 py-1 text-sm w-12 text-center text-gray-600 font-bold bg-gray-100 select-none";
-  thNum.textContent = "#";
-  headerRow.appendChild(thNum);
-
-  for (const header of headers) {
-    const th = document.createElement("th");
-    th.className = "border px-2 py-1 text-sm";
-    th.textContent = header;
-    headerRow.appendChild(th);
+  const headerContent = document.getElementById("diff-header-content");
+  if (headerContent) {
+    headerContent.style.width = `${totalGridWidth}px`;
+    headerContent.style.height = `32px`;
   }
 
-  thead.replaceChildren(headerRow);
+  const bodyContent = document.getElementById("diff-body-content");
+  if (bodyContent) {
+    bodyContent.style.width = `${totalGridWidth}px`;
+  }
+
+  renderVirtualGrid();
 }
 
 function getFileBadgeClass(index: number): string {
@@ -255,32 +280,144 @@ function escapeHtml(str: string): string {
 }
 
 function renderRows(rows: DiffRow[]) {
-  const tbody = document.querySelector("#diff-table tbody")!;
-  const startRowNumber = currentPage * PAGE_SIZE + 1;
-  const htmlParts: string[] = [];
+  currentRows = rows;
+  rowOffsets = [0];
+  let currentY = 0;
 
-  rows.forEach((row, rowIndex) => {
-    htmlParts.push("<tr>");
-
-    // Row number cell
-    htmlParts.push(
-      `<td class="border px-2 py-1 text-sm text-center text-gray-600 font-mono bg-gray-100 select-none w-12">${startRowNumber + rowIndex}</td>`
-    );
+  for (const row of rows) {
+    let hasDiff = false;
+    let maxStackedItems = 0;
 
     for (const cell of row) {
+      if (typeof cell !== "string") {
+        hasDiff = true;
+        let itemsCount = 0;
+        for (const fileIndexes of Object.values(cell)) {
+          itemsCount += (fileIndexes as number[]).length;
+        }
+        if (itemsCount > maxStackedItems) {
+          maxStackedItems = itemsCount;
+        }
+      }
+    }
+
+    const h = hasDiff
+      ? Math.max(ROW_HEIGHT_BASE, maxStackedItems * ROW_HEIGHT_DIFF_ITEM + 8)
+      : ROW_HEIGHT_BASE;
+    currentY += h;
+    rowOffsets.push(currentY);
+  }
+
+  totalGridHeight = currentY;
+
+  const bodyContent = document.getElementById("diff-body-content");
+  if (bodyContent) {
+    bodyContent.style.height = `${totalGridHeight}px`;
+  }
+
+  const bodyViewport = document.getElementById("diff-body-viewport");
+  if (bodyViewport) {
+    bodyViewport.scrollTop = 0;
+  }
+
+  renderVirtualGrid();
+}
+
+function renderVirtualGrid() {
+  const bodyViewport = document.getElementById("diff-body-viewport");
+  const bodyContent = document.getElementById("diff-body-content");
+  const headerContent = document.getElementById("diff-header-content");
+  if (!bodyViewport || !bodyContent || !headerContent) return;
+
+  const scrollTop = bodyViewport.scrollTop;
+  const scrollLeft = bodyViewport.scrollLeft;
+  const viewportWidth = bodyViewport.clientWidth || 800;
+  const viewportHeight = bodyViewport.clientHeight || 600;
+
+  // Calculate visible columns
+  const startCol = Math.max(
+    0,
+    Math.floor((scrollLeft - ROW_NUM_WIDTH) / COL_WIDTH)
+  );
+  const endCol = Math.min(
+    Math.max(0, headers.length - 1),
+    Math.ceil((scrollLeft + viewportWidth - ROW_NUM_WIDTH) / COL_WIDTH)
+  );
+
+  // Calculate visible rows
+  let startRow = 0;
+  for (let i = 0; i < currentRows.length; i++) {
+    if (rowOffsets[i + 1] > scrollTop) {
+      startRow = i;
+      break;
+    }
+  }
+
+  let endRow = currentRows.length - 1;
+  for (let i = startRow; i < currentRows.length; i++) {
+    if (rowOffsets[i] >= scrollTop + viewportHeight) {
+      endRow = i;
+      break;
+    }
+  }
+
+  const startColBuffered = Math.max(0, startCol - 2);
+  const endColBuffered = Math.min(Math.max(0, headers.length - 1), endCol + 2);
+  const startRowBuffered = Math.max(0, startRow - 2);
+  const endRowBuffered = Math.min(
+    Math.max(0, currentRows.length - 1),
+    endRow + 2
+  );
+
+  // Render headers
+  const headerParts: string[] = [];
+  if (headers.length > 0) {
+    headerParts.push(
+      `<div class="absolute top-0 left-0 border-r border-b border-t px-2 py-1 text-sm text-center text-gray-600 font-bold bg-gray-100 select-none flex items-center justify-center z-20" style="width: ${ROW_NUM_WIDTH}px; height: 32px;">#</div>`
+    );
+
+    for (let c = startColBuffered; c <= endColBuffered; c++) {
+      if (c >= headers.length) break;
+      const left = ROW_NUM_WIDTH + c * COL_WIDTH;
+      headerParts.push(
+        `<div class="absolute top-0 border-r border-t border-b px-2 py-1 text-sm bg-gray-100 text-gray-700 font-bold truncate flex items-center" style="left: ${left}px; width: ${COL_WIDTH}px; height: 32px;" title="${escapeHtml(headers[c])}">${escapeHtml(headers[c])}</div>`
+      );
+    }
+  }
+  headerContent.innerHTML = headerParts.join("");
+
+  // Render rows
+  const bodyParts: string[] = [];
+  const startRowNumber = currentPage * PAGE_SIZE + 1;
+
+  for (let r = startRowBuffered; r <= endRowBuffered; r++) {
+    if (r >= currentRows.length) break;
+    const top = rowOffsets[r];
+    const height = rowOffsets[r + 1] - top;
+    const row = currentRows[r];
+
+    bodyParts.push(
+      `<div class="absolute left-0 border-b border-r px-2 py-1 text-sm text-center text-gray-600 font-mono bg-gray-50 select-none flex items-start justify-center pt-2 z-10" style="top: ${top}px; width: ${ROW_NUM_WIDTH}px; height: ${height}px;">${startRowNumber + r}</div>`
+    );
+
+    for (let c = startColBuffered; c <= endColBuffered; c++) {
+      if (c >= headers.length) break;
+      const left = ROW_NUM_WIDTH + c * COL_WIDTH;
+      const cell = row[c];
+
       if (typeof cell === "string") {
-        htmlParts.push(
-          `<td class="border px-2 py-1 text-sm max-w-[240px] truncate">${escapeHtml(cell)}</td>`
+        bodyParts.push(
+          `<div class="absolute border-b border-r px-2 py-1 text-sm overflow-hidden flex items-start bg-white" style="top: ${top}px; left: ${left}px; width: ${COL_WIDTH}px; height: ${height}px;">` +
+            `<div class="truncate w-full pt-1" title="${escapeHtml(cell)}">${escapeHtml(cell)}</div>` +
+            `</div>`
         );
       } else {
-        htmlParts.push(
-          `<td class="border px-2 py-1 text-sm max-w-[240px] bg-amber-50 align-top">`
-        );
-        htmlParts.push(`<div class="flex flex-col gap-1 py-0.5">`);
+        let cellHtml = `<div class="absolute border-b border-r px-2 py-1 text-sm overflow-hidden bg-amber-50" style="top: ${top}px; left: ${left}px; width: ${COL_WIDTH}px; height: ${height}px;">`;
+        cellHtml += `<div class="flex flex-col gap-1 py-0.5">`;
 
         const fileValues: { fileIndex: number; value: string }[] = [];
         for (const [value, fileIndexes] of Object.entries(cell)) {
-          for (const fileIndex of fileIndexes) {
+          for (const fileIndex of fileIndexes as number[]) {
             fileValues.push({ fileIndex, value });
           }
         }
@@ -289,23 +426,21 @@ function renderRows(rows: DiffRow[]) {
         for (const { fileIndex, value } of fileValues) {
           const badgeClass = getFileBadgeClass(fileIndex);
           const valText = value === "" ? "(empty)" : escapeHtml(value);
-          const valClass = value === "" ? "truncate text-gray-400 italic" : "truncate";
+          const valClass =
+            value === "" ? "truncate text-gray-400 italic" : "truncate";
 
-          htmlParts.push(
-            `<div class="flex items-center gap-1.5 text-xs min-w-0">` +
-              `<span class="px-1 py-0.5 rounded text-[10px] font-bold border leading-none shrink-0 ${badgeClass}">F${fileIndex + 1}</span>` +
-              `<span class="${valClass}">${valText}</span>` +
-            `</div>`
-          );
+          cellHtml += `<div class="flex items-center gap-1.5 text-xs min-w-0" title="${escapeHtml(value)}">
+            <span class="px-1 py-0.5 rounded text-[10px] font-bold border leading-none shrink-0 ${badgeClass}">F${fileIndex + 1}</span>
+            <span class="${valClass}">${valText}</span>
+          </div>`;
         }
-
-        htmlParts.push(`</div></td>`);
+        cellHtml += `</div></div>`;
+        bodyParts.push(cellHtml);
       }
     }
-    htmlParts.push("</tr>");
-  });
+  }
 
-  tbody.innerHTML = htmlParts.join("");
+  bodyContent.innerHTML = bodyParts.join("");
 }
 
 async function getMeta() {
@@ -413,7 +548,7 @@ function setupPagination() {
     }
   });
 
-  pageInput.addEventListener("keydown", (e) => {
+  pageInput.addEventListener("keydown", e => {
     if (e.key === "Enter") {
       pageInput.blur();
     }
@@ -431,11 +566,11 @@ function setupPagination() {
   pageSizeSelect.addEventListener("change", () => {
     PAGE_SIZE = parseInt(pageSizeSelect.value, 10) || 50;
     totalPages = Math.ceil(totalRows / PAGE_SIZE);
-    
+
     if (currentPage >= totalPages) {
       currentPage = Math.max(0, totalPages - 1);
     }
-    
+
     loadPageAndUpdatePaginationUI(currentPage);
   });
 }
@@ -512,17 +647,17 @@ clearBtn.addEventListener("click", async () => {
     alert("Cannot clear results while comparison is in progress.");
     return;
   }
-  
+
   if (confirm("Are you sure you want to clear all compared results?")) {
     await clearDB();
-    
+
     // Reset state variables
     currentPage = 0;
     totalRows = 0;
     totalPages = 0;
     headers = [];
     files.clear();
-    
+
     // Reset status and UI
     updateStatus("Data cleared.", "ready");
     renderLegend(undefined);

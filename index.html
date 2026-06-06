@@ -69,12 +69,25 @@
       <!-- Legend -->
       <div id="diff-legend" class="mb-4 flex flex-wrap gap-3 rounded"></div>
 
-      <!-- Table -->
-      <div class="border bg-white overflow-auto">
-        <table
-          id="diff-table"
-          class="min-w-full text-sm border-collapse"
-        ></table>
+      <!-- Virtual Grid -->
+      <div
+        id="diff-grid-container"
+        class="border bg-white flex flex-col relative h-[600px] w-full shadow-inner text-sm"
+      >
+        <!-- Header Viewport (Hidden scrollbar but synchronized horizontally) -->
+        <div
+          id="diff-header-viewport"
+          class="overflow-hidden w-full bg-gray-100 border-b shadow-[0_1px_0_rgba(0,0,0,1)] relative z-10 shrink-0 select-none"
+        >
+          <div id="diff-header-content" class="relative min-w-full"></div>
+        </div>
+        <!-- Body Viewport -->
+        <div
+          id="diff-body-viewport"
+          class="overflow-auto w-full relative flex-1 bg-white"
+        >
+          <div id="diff-body-content" class="relative min-w-full"></div>
+        </div>
       </div>
 
       <!-- Pagination -->
@@ -179,7 +192,9 @@
               </svg>
             </button>
 
-            <div class="flex items-center gap-1.5 text-sm text-gray-600 font-medium border-l pl-4 ml-2">
+            <div
+              class="flex items-center gap-1.5 text-sm text-gray-600 font-medium border-l pl-4 ml-2"
+            >
               <span>Rows per page:</span>
               <select
                 id="page-size-select"
