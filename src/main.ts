@@ -78,7 +78,10 @@ async function initUI() {
     renderLegend(meta.fileNames);
   }
 
-  window.addEventListener("scroll", renderVirtualGrid, { capture: true, passive: true });
+  window.addEventListener("scroll", renderVirtualGrid, {
+    capture: true,
+    passive: true
+  });
   window.addEventListener("resize", renderVirtualGrid, { passive: true });
 
   renderHeaders(headers);
@@ -352,14 +355,17 @@ function renderVirtualGrid() {
   }
 
   const startRowBuffered = Math.max(0, startRow - 2);
-  const endRowBuffered = Math.min(Math.max(0, currentRows.length - 1), endRow + 2);
+  const endRowBuffered = Math.min(
+    Math.max(0, currentRows.length - 1),
+    endRow + 2
+  );
 
   const parts: string[] = [];
 
   // 1. Render `#` Header
   if (headers.length > 0) {
     parts.push(
-      `<div class="absolute top-0 left-0 border-r border-b border-t px-2 py-1 text-sm text-center text-gray-600 font-bold bg-gray-100 select-none flex items-center justify-center z-10" style="width: ${ROW_NUM_WIDTH}px; height: 32px;">#</div>`
+      `<div class="absolute top-0 left-0 border-l border-r border-b border-t px-2 py-1 text-sm text-center text-gray-600 font-bold bg-gray-100 select-none flex items-center justify-center z-10" style="width: ${ROW_NUM_WIDTH}px; height: 32px;">#</div>`
     );
 
     // 2. Render Column Headers
@@ -382,7 +388,7 @@ function renderVirtualGrid() {
 
     // Row number cell
     parts.push(
-      `<div class="absolute left-0 border-b border-r px-2 py-1 text-sm text-center text-gray-600 font-mono bg-gray-50 select-none flex items-start justify-center pt-2" style="top: ${top}px; width: ${ROW_NUM_WIDTH}px; height: ${height}px;">${startRowNumber + r}</div>`
+      `<div class="absolute left-0 border-l border-b border-r px-2 py-1 text-sm text-center text-gray-600 font-mono bg-gray-50 select-none flex items-start justify-center pt-2" style="top: ${top}px; width: ${ROW_NUM_WIDTH}px; height: ${height}px;">${startRowNumber + r}</div>`
     );
 
     // Data cells
