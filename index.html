@@ -43,21 +43,19 @@
         <ul id="file-list" class="divide-y text-sm"></ul>
       </section>
 
-      <!-- Compare Button -->
-      <div class="mb-6">
+      <!-- Compare Action and Status -->
+      <div class="mb-6 flex items-center gap-4 flex-wrap">
         <button
           id="compareBtn"
-          class="px-5 py-2 bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+          class="px-5 py-2 bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50 rounded transition-colors"
         >
           Start comparison
         </button>
+        <div class="flex items-center gap-2 text-sm text-gray-600 font-medium">
+          <span id="status-dot" class="w-2.5 h-2.5 rounded-full bg-gray-300 transition-all duration-300"></span>
+          <span id="status" class="whitespace-pre-wrap">Worker ready.</span>
+        </div>
       </div>
-
-      <!-- Status -->
-      <pre
-        id="status"
-        class="text-sm text-gray-600 mb-6 whitespace-pre-wrap"
-      ></pre>
 
       <!-- Legend -->
       <div id="diff-legend" class="mb-4 flex flex-wrap gap-3 rounded"></div>
@@ -73,24 +71,63 @@
       <!-- Pagination -->
       <div
         id="pagination"
-        class="sticky bottom-0 bg-gray-50 border-t-2 py-3 -mt-0.5"
+        class="sticky bottom-0 bg-gray-50 border-t py-3 -mt-0.5 shadow-sm"
       >
-        <div class="max-w-6xl mx-auto px-6 flex items-center gap-4">
-          <button
-            id="prev-btn"
-            class="px-3 py-1 border rounded bg-gray-100 hover:bg-gray-200"
-          >
-            Prev
-          </button>
+        <div class="max-w-6xl mx-auto px-6 flex items-center justify-between flex-wrap gap-4">
+          <div class="flex items-center gap-2">
+            <button
+              id="first-btn"
+              class="p-2 border rounded bg-white hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-white disabled:cursor-not-allowed transition-colors flex items-center justify-center text-gray-700"
+              aria-label="First page"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M18.75 19.5l-7.5-7.5 7.5-7.5m-6 15L5.25 12l7.5-7.5" />
+              </svg>
+            </button>
+            <button
+              id="prev-btn"
+              class="p-2 border rounded bg-white hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-white disabled:cursor-not-allowed transition-colors flex items-center justify-center text-gray-700"
+              aria-label="Previous page"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+              </svg>
+            </button>
 
-          <span id="page-info" class="text-sm text-gray-600"></span>
+            <div class="flex items-center gap-1.5 text-sm text-gray-600 font-medium px-2">
+              <span>Page</span>
+              <input
+                id="page-input"
+                type="number"
+                min="1"
+                class="w-14 px-1.5 py-0.5 border rounded text-center bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                value="1"
+              />
+              <span>of</span>
+              <span id="total-pages" class="font-mono">1</span>
+            </div>
 
-          <button
-            id="next-btn"
-            class="px-3 py-1 border rounded bg-gray-100 hover:bg-gray-200"
-          >
-            Next
-          </button>
+            <button
+              id="next-btn"
+              class="p-2 border rounded bg-white hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-white disabled:cursor-not-allowed transition-colors flex items-center justify-center text-gray-700"
+              aria-label="Next page"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+              </svg>
+            </button>
+            <button
+              id="last-btn"
+              class="p-2 border rounded bg-white hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-white disabled:cursor-not-allowed transition-colors flex items-center justify-center text-gray-700"
+              aria-label="Last page"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M11.25 4.5l7.5 7.5-7.5 7.5m-6-15l7.5 7.5-7.5 7.5" />
+              </svg>
+            </button>
+          </div>
+
+          <div id="row-info" class="text-sm text-gray-500 font-medium"></div>
         </div>
       </div>
     </main>

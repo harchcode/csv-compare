@@ -12,7 +12,17 @@ const fileInput = document.getElementById("file-input") as HTMLInputElement;
 const fileList = document.getElementById("file-list") as HTMLUListElement;
 
 const compareBtn = document.getElementById("compareBtn") as HTMLButtonElement;
-const statusEl = document.getElementById("status") as HTMLPreElement;
+const statusEl = document.getElementById("status") as HTMLElement;
+const statusDotEl = document.getElementById("status-dot") as HTMLElement;
+
+// Pagination elements
+const firstBtn = document.getElementById("first-btn") as HTMLButtonElement;
+const prevBtn = document.getElementById("prev-btn") as HTMLButtonElement;
+const nextBtn = document.getElementById("next-btn") as HTMLButtonElement;
+const lastBtn = document.getElementById("last-btn") as HTMLButtonElement;
+const pageInput = document.getElementById("page-input") as HTMLInputElement;
+const totalPagesSpan = document.getElementById("total-pages") as HTMLElement;
+const rowInfoEl = document.getElementById("row-info") as HTMLElement;
 
 const PAGE_SIZE = 200;
 
@@ -64,6 +74,21 @@ async function initUI() {
 
 initUI();
 
+function updateStatus(text: string, state: "ready" | "processing" | "success" | "error") {
+  statusEl.textContent = text;
+  statusDotEl.className = "w-2.5 h-2.5 rounded-full transition-all duration-300";
+  
+  if (state === "ready") {
+    statusDotEl.classList.add("bg-gray-300");
+  } else if (state === "processing") {
+    statusDotEl.classList.add("bg-blue-500", "animate-pulse");
+  } else if (state === "success") {
+    statusDotEl.classList.add("bg-emerald-500");
+  } else if (state === "error") {
+    statusDotEl.classList.add("bg-rose-500");
+  }
+}
+
 const worker = new Worker(new URL("./worker.ts", import.meta.url), {
   type: "module"
 });
@@ -73,7 +98,7 @@ worker.onmessage = (event: MessageEvent<WorkerToMainMessage>) => {
 
   switch (msg.type) {
     case "READY":
-      statusEl.textContent = "Worker ready.";
+      updateStatus("Worker ready.", "ready");
       break;
 
     case "HEADER": {
@@ -85,7 +110,7 @@ worker.onmessage = (event: MessageEvent<WorkerToMainMessage>) => {
 
     case "PROGRESS": {
       console.log("Progress:", msg.payload);
-      statusEl.textContent = `Processed rows: ${msg.payload.processedRows}`;
+      updateStatus(`Processed rows: ${msg.payload.processedRows}`, "processing");
 
       if (msg.payload.processedRows === 0) {
         renderRows([]);
@@ -105,14 +130,14 @@ worker.onmessage = (event: MessageEvent<WorkerToMainMessage>) => {
     }
 
     case "COMPLETE":
-      statusEl.textContent = `Done. Total compared: ${msg.payload.totalCompared}`;
+      updateStatus(`Done. Total compared: ${msg.payload.totalCompared}`, "success");
       compareBtn.disabled = false;
       isProcessing = false;
 
       break;
 
     case "ERROR":
-      statusEl.textContent = `Error: ${msg.payload.message}`;
+      updateStatus(`Error: ${msg.payload.message}`, "error");
       compareBtn.disabled = false;
       isProcessing = false;
 
@@ -138,6 +163,7 @@ compareBtn.addEventListener("click", () => {
 
   compareBtn.disabled = true;
   isProcessing = true;
+  updateStatus("Comparing files...", "processing");
   const selectedFiles = Array.from(files.values());
   renderLegend(selectedFiles.map(f => f.name));
   const startMessage: MainToWorkerMessage = {
@@ -330,13 +356,21 @@ async function getPage(page: number): Promise<DiffRow[]> {
 }
 
 function updatePaginationUI() {
-  const info = document.getElementById("page-info")!;
+  const displayPages = totalPages || 1;
+  totalPagesSpan.textContent = String(displayPages);
+  pageInput.value = String(currentPage + 1);
+  pageInput.max = String(displayPages);
 
-  info.textContent = `Page ${currentPage + 1} / ${totalPages}`;
-  (document.getElementById("prev-btn") as HTMLButtonElement).disabled =
-    currentPage === 0;
-  (document.getElementById("next-btn") as HTMLButtonElement).disabled =
-    currentPage >= totalPages - 1;
+  firstBtn.disabled = currentPage === 0;
+  prevBtn.disabled = currentPage === 0;
+  nextBtn.disabled = currentPage >= totalPages - 1;
+  lastBtn.disabled = currentPage >= totalPages - 1;
+
+  if (totalRows > 0) {
+    rowInfoEl.textContent = `Total compared: ${totalRows.toLocaleString()} rows`;
+  } else {
+    rowInfoEl.textContent = "";
+  }
 }
 
 async function loadPage(page: number) {
@@ -353,15 +387,42 @@ async function loadPageAndUpdatePaginationUI(page: number) {
 }
 
 function setupPagination() {
-  document.getElementById("prev-btn")!.addEventListener("click", () => {
+  firstBtn.addEventListener("click", () => {
+    if (currentPage > 0) {
+      loadPageAndUpdatePaginationUI(0);
+    }
+  });
+
+  prevBtn.addEventListener("click", () => {
     if (currentPage > 0) {
       loadPageAndUpdatePaginationUI(currentPage - 1);
     }
   });
 
-  document.getElementById("next-btn")!.addEventListener("click", () => {
+  nextBtn.addEventListener("click", () => {
     if (currentPage < totalPages - 1) {
       loadPageAndUpdatePaginationUI(currentPage + 1);
+    }
+  });
+
+  lastBtn.addEventListener("click", () => {
+    if (currentPage < totalPages - 1) {
+      loadPageAndUpdatePaginationUI(totalPages - 1);
+    }
+  });
+
+  pageInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      pageInput.blur();
+    }
+  });
+
+  pageInput.addEventListener("change", () => {
+    const val = parseInt(pageInput.value, 10);
+    if (!isNaN(val) && val >= 1 && val <= totalPages) {
+      loadPageAndUpdatePaginationUI(val - 1);
+    } else {
+      pageInput.value = String(currentPage + 1);
     }
   });
 }
