@@ -72,19 +72,19 @@
       <!-- Virtual Grid -->
       <div
         id="diff-grid-container"
-        class="border bg-white flex flex-col relative h-[600px] w-full shadow-inner text-sm"
+        class="border bg-white flex flex-col relative w-full shadow-inner text-sm"
       >
         <!-- Header Viewport (Hidden scrollbar but synchronized horizontally) -->
         <div
           id="diff-header-viewport"
-          class="overflow-hidden w-full bg-gray-100 border-b shadow-[0_1px_0_rgba(0,0,0,1)] relative z-10 shrink-0 select-none"
+          class="overflow-hidden w-full bg-gray-100 border-b shadow-[0_1px_0_rgba(0,0,0,1)] sticky top-0 z-40 shrink-0 select-none"
         >
           <div id="diff-header-content" class="relative min-w-full"></div>
         </div>
         <!-- Body Viewport -->
         <div
           id="diff-body-viewport"
-          class="overflow-auto w-full relative flex-1 bg-white"
+          class="overflow-auto w-full relative flex-1 bg-white z-0"
         >
           <div id="diff-body-content" class="relative min-w-full"></div>
         </div>

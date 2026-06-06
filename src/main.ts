@@ -373,7 +373,7 @@ function renderVirtualGrid() {
   const headerParts: string[] = [];
   if (headers.length > 0) {
     headerParts.push(
-      `<div class="absolute top-0 left-0 border-r border-b border-t px-2 py-1 text-sm text-center text-gray-600 font-bold bg-gray-100 select-none flex items-center justify-center z-20" style="width: ${ROW_NUM_WIDTH}px; height: 32px;">#</div>`
+      `<div class="absolute top-0 border-r border-b border-t px-2 py-1 text-sm text-center text-gray-600 font-bold bg-gray-100 select-none flex items-center justify-center z-30" style="left: ${scrollLeft}px; width: ${ROW_NUM_WIDTH}px; height: 32px;">#</div>`
     );
 
     for (let c = startColBuffered; c <= endColBuffered; c++) {
@@ -397,7 +397,7 @@ function renderVirtualGrid() {
     const row = currentRows[r];
 
     bodyParts.push(
-      `<div class="absolute left-0 border-b border-r px-2 py-1 text-sm text-center text-gray-600 font-mono bg-gray-50 select-none flex items-start justify-center pt-2 z-10" style="top: ${top}px; width: ${ROW_NUM_WIDTH}px; height: ${height}px;">${startRowNumber + r}</div>`
+      `<div class="absolute border-b border-r px-2 py-1 text-sm text-center text-gray-600 font-mono bg-gray-50 select-none flex items-start justify-center pt-2 z-20" style="left: ${scrollLeft}px; top: ${top}px; width: ${ROW_NUM_WIDTH}px; height: ${height}px;">${startRowNumber + r}</div>`
     );
 
     for (let c = startColBuffered; c <= endColBuffered; c++) {
