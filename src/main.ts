@@ -78,15 +78,8 @@ async function initUI() {
     renderLegend(meta.fileNames);
   }
 
-  const bodyViewport = document.getElementById("diff-body-viewport");
-  const headerViewport = document.getElementById("diff-header-viewport");
-
-  if (bodyViewport && headerViewport) {
-    bodyViewport.addEventListener("scroll", () => {
-      headerViewport.scrollLeft = bodyViewport.scrollLeft;
-      renderVirtualGrid();
-    });
-  }
+  window.addEventListener("scroll", renderVirtualGrid, { capture: true, passive: true });
+  window.addEventListener("resize", renderVirtualGrid, { passive: true });
 
   renderHeaders(headers);
   setupPagination();
@@ -214,12 +207,6 @@ function renderHeaders(newHeaders: string[]) {
   headers = newHeaders;
   totalGridWidth = ROW_NUM_WIDTH + headers.length * COL_WIDTH;
 
-  const headerContent = document.getElementById("diff-header-content");
-  if (headerContent) {
-    headerContent.style.width = `${totalGridWidth}px`;
-    headerContent.style.height = `32px`;
-  }
-
   const bodyContent = document.getElementById("diff-body-content");
   if (bodyContent) {
     bodyContent.style.width = `${totalGridWidth}px`;
@@ -311,43 +298,48 @@ function renderRows(rows: DiffRow[]) {
   totalGridHeight = currentY;
 
   const bodyContent = document.getElementById("diff-body-content");
+  // Total height includes the 32px header
   if (bodyContent) {
-    bodyContent.style.height = `${totalGridHeight}px`;
+    bodyContent.style.height = `${totalGridHeight + 32}px`;
   }
 
-  const bodyViewport = document.getElementById("diff-body-viewport");
-  if (bodyViewport) {
-    bodyViewport.scrollTop = 0;
-  }
+  window.scrollTo({ top: 0 });
 
   renderVirtualGrid();
 }
 
 function renderVirtualGrid() {
-  const bodyViewport = document.getElementById("diff-body-viewport");
   const bodyContent = document.getElementById("diff-body-content");
-  const headerContent = document.getElementById("diff-header-content");
-  if (!bodyViewport || !bodyContent || !headerContent) return;
+  if (!bodyContent) return;
 
-  const scrollTop = bodyViewport.scrollTop;
-  const scrollLeft = bodyViewport.scrollLeft;
-  const viewportWidth = bodyViewport.clientWidth || 800;
-  const viewportHeight = bodyViewport.clientHeight || 600;
+  const rect = bodyContent.getBoundingClientRect();
+  const windowWidth = window.innerWidth;
+  const windowHeight = window.innerHeight;
+
+  // Horizontal Visibility
+  const visibleLeft = Math.max(0, -rect.left);
+  const visibleRight = visibleLeft + windowWidth;
 
   // Calculate visible columns
   const startCol = Math.max(
     0,
-    Math.floor((scrollLeft - ROW_NUM_WIDTH) / COL_WIDTH)
+    Math.floor((visibleLeft - ROW_NUM_WIDTH) / COL_WIDTH)
   );
   const endCol = Math.min(
     Math.max(0, headers.length - 1),
-    Math.ceil((scrollLeft + viewportWidth - ROW_NUM_WIDTH) / COL_WIDTH)
+    Math.ceil((visibleRight - ROW_NUM_WIDTH) / COL_WIDTH)
   );
 
-  // Calculate visible rows
+  const startColBuffered = Math.max(0, startCol - 2);
+  const endColBuffered = Math.min(Math.max(0, headers.length - 1), endCol + 2);
+
+  // Vertical Visibility
+  const visibleTop = Math.max(0, -rect.top);
+  const visibleBottom = visibleTop + windowHeight;
+
   let startRow = 0;
   for (let i = 0; i < currentRows.length; i++) {
-    if (rowOffsets[i + 1] > scrollTop) {
+    if (rowOffsets[i + 1] > visibleTop - 32) {
       startRow = i;
       break;
     }
@@ -355,58 +347,54 @@ function renderVirtualGrid() {
 
   let endRow = currentRows.length - 1;
   for (let i = startRow; i < currentRows.length; i++) {
-    if (rowOffsets[i] >= scrollTop + viewportHeight) {
+    if (rowOffsets[i] >= visibleBottom - 32) {
       endRow = i;
       break;
     }
   }
 
-  const startColBuffered = Math.max(0, startCol - 2);
-  const endColBuffered = Math.min(Math.max(0, headers.length - 1), endCol + 2);
   const startRowBuffered = Math.max(0, startRow - 2);
-  const endRowBuffered = Math.min(
-    Math.max(0, currentRows.length - 1),
-    endRow + 2
-  );
+  const endRowBuffered = Math.min(Math.max(0, currentRows.length - 1), endRow + 2);
 
-  // Render headers
-  const headerParts: string[] = [];
+  const parts: string[] = [];
+
+  // 1. Render `#` Header
   if (headers.length > 0) {
-    headerParts.push(
-      `<div class="absolute top-0 border-r border-b border-t px-2 py-1 text-sm text-center text-gray-600 font-bold bg-gray-100 select-none flex items-center justify-center z-30" style="left: ${scrollLeft}px; width: ${ROW_NUM_WIDTH}px; height: 32px;">#</div>`
+    parts.push(
+      `<div class="absolute top-0 left-0 border-r border-b border-t px-2 py-1 text-sm text-center text-gray-600 font-bold bg-gray-100 select-none flex items-center justify-center z-10" style="width: ${ROW_NUM_WIDTH}px; height: 32px;">#</div>`
     );
 
+    // 2. Render Column Headers
     for (let c = startColBuffered; c <= endColBuffered; c++) {
       if (c >= headers.length) break;
       const left = ROW_NUM_WIDTH + c * COL_WIDTH;
-      headerParts.push(
-        `<div class="absolute top-0 border-r border-t border-b px-2 py-1 text-sm bg-gray-100 text-gray-700 font-bold truncate flex items-center" style="left: ${left}px; width: ${COL_WIDTH}px; height: 32px;" title="${escapeHtml(headers[c])}">${escapeHtml(headers[c])}</div>`
+      parts.push(
+        `<div class="absolute top-0 border-r border-t border-b px-2 py-1 text-sm bg-gray-100 text-gray-700 font-bold truncate flex items-center select-none z-10" style="left: ${left}px; width: ${COL_WIDTH}px; height: 32px;" title="${escapeHtml(headers[c])}">${escapeHtml(headers[c])}</div>`
       );
     }
   }
-  headerContent.innerHTML = headerParts.join("");
 
-  // Render rows
-  const bodyParts: string[] = [];
+  // 3. Render Body
   const startRowNumber = currentPage * PAGE_SIZE + 1;
-
   for (let r = startRowBuffered; r <= endRowBuffered; r++) {
     if (r >= currentRows.length) break;
-    const top = rowOffsets[r];
-    const height = rowOffsets[r + 1] - top;
+    const top = rowOffsets[r] + 32; // Offset by 32px for the header
+    const height = rowOffsets[r + 1] - rowOffsets[r];
     const row = currentRows[r];
 
-    bodyParts.push(
-      `<div class="absolute border-b border-r px-2 py-1 text-sm text-center text-gray-600 font-mono bg-gray-50 select-none flex items-start justify-center pt-2 z-20" style="left: ${scrollLeft}px; top: ${top}px; width: ${ROW_NUM_WIDTH}px; height: ${height}px;">${startRowNumber + r}</div>`
+    // Row number cell
+    parts.push(
+      `<div class="absolute left-0 border-b border-r px-2 py-1 text-sm text-center text-gray-600 font-mono bg-gray-50 select-none flex items-start justify-center pt-2" style="top: ${top}px; width: ${ROW_NUM_WIDTH}px; height: ${height}px;">${startRowNumber + r}</div>`
     );
 
+    // Data cells
     for (let c = startColBuffered; c <= endColBuffered; c++) {
       if (c >= headers.length) break;
       const left = ROW_NUM_WIDTH + c * COL_WIDTH;
       const cell = row[c];
 
       if (typeof cell === "string") {
-        bodyParts.push(
+        parts.push(
           `<div class="absolute border-b border-r px-2 py-1 text-sm overflow-hidden flex items-start bg-white" data-cell-row="${r}" data-cell-col="${c}" style="top: ${top}px; left: ${left}px; width: ${COL_WIDTH}px; height: ${height}px;">` +
             `<div class="truncate w-full pt-1 pointer-events-none">${escapeHtml(cell)}</div>` +
             `</div>`
@@ -435,12 +423,12 @@ function renderVirtualGrid() {
           </div>`;
         }
         cellHtml += `</div></div>`;
-        bodyParts.push(cellHtml);
+        parts.push(cellHtml);
       }
     }
   }
 
-  bodyContent.innerHTML = bodyParts.join("");
+  bodyContent.innerHTML = parts.join("");
 }
 
 async function getMeta() {
@@ -680,33 +668,33 @@ function hideTooltip() {
 
 if (bodyContentEl && tooltipEl) {
   bodyContentEl.addEventListener("mouseleave", hideTooltip);
-  
-  bodyContentEl.addEventListener("mousemove", (e) => {
+
+  bodyContentEl.addEventListener("mousemove", e => {
     const target = e.target as HTMLElement;
-    const cellEl = target.closest('[data-cell-row]');
+    const cellEl = target.closest("[data-cell-row]");
     if (!cellEl) {
       hideTooltip();
       return;
     }
-    
+
     const r = parseInt(cellEl.getAttribute("data-cell-row") || "", 10);
     const c = parseInt(cellEl.getAttribute("data-cell-col") || "", 10);
-    
+
     if (isNaN(r) || isNaN(c) || !currentRows[r]) {
       hideTooltip();
       return;
     }
-    
+
     const headerName = headers[c];
     const cell = currentRows[r][c];
     const globalRowNumber = currentPage * PAGE_SIZE + 1 + r;
-    
+
     let html = `<div class="font-bold text-gray-700 mb-2 pb-1.5 border-b border-gray-200">${escapeHtml(headerName)} <span class="text-gray-400 font-normal ml-1">#${globalRowNumber}</span></div>`;
-    
+
     if (typeof cell === "string") {
       const valText = cell === "" ? "(empty)" : escapeHtml(cell);
       const valClass = cell === "" ? "text-gray-400 italic" : "text-gray-800";
-      
+
       html += `<div class="flex items-center gap-2 mb-1.5 mt-1">
          <span class="px-1.5 py-0.5 rounded text-[10px] font-bold border border-gray-200 bg-gray-100 text-gray-600">All Files</span>
       </div>`;
@@ -719,30 +707,31 @@ if (bodyContentEl && tooltipEl) {
         }
       }
       fileValues.sort((a, b) => a.fileIndex - b.fileIndex);
-      
+
       const allFiles = Array.from(files.values());
-      
+
       for (const { fileIndex, value } of fileValues) {
-         const badgeClass = getFileBadgeClass(fileIndex);
-         const valText = value === "" ? "(empty)" : escapeHtml(value);
-         const valClass = value === "" ? "text-gray-400 italic" : "text-gray-800";
-         const fileName = allFiles[fileIndex]?.name || `F${fileIndex + 1}`;
-         
-         html += `<div class="mb-3.5 last:mb-0 mt-1">`;
-         html += `<div class="flex items-center gap-1.5 mb-1.5">
+        const badgeClass = getFileBadgeClass(fileIndex);
+        const valText = value === "" ? "(empty)" : escapeHtml(value);
+        const valClass =
+          value === "" ? "text-gray-400 italic" : "text-gray-800";
+        const fileName = allFiles[fileIndex]?.name || `F${fileIndex + 1}`;
+
+        html += `<div class="mb-3.5 last:mb-0 mt-1">`;
+        html += `<div class="flex items-center gap-1.5 mb-1.5">
             <span class="px-1 py-0.5 rounded text-[10px] font-bold border leading-none shrink-0 ${badgeClass}">F${fileIndex + 1}</span>
             <span class="text-gray-500 font-medium text-xs truncate max-w-[200px]">${escapeHtml(fileName)}</span>
          </div>`;
-         html += `<div class="${valClass} pl-0.5 whitespace-pre-wrap leading-relaxed">${valText}</div>`;
-         html += `</div>`;
+        html += `<div class="${valClass} pl-0.5 whitespace-pre-wrap leading-relaxed">${valText}</div>`;
+        html += `</div>`;
       }
     }
-    
+
     tooltipEl.innerHTML = html;
-    
+
     let x = e.clientX + 15;
     let y = e.clientY + 15;
-    
+
     const rect = tooltipEl.getBoundingClientRect();
     if (x + rect.width > window.innerWidth) {
       x = e.clientX - rect.width - 15;
@@ -750,7 +739,7 @@ if (bodyContentEl && tooltipEl) {
     if (y + rect.height > window.innerHeight) {
       y = e.clientY - rect.height - 15;
     }
-    
+
     tooltipEl.style.transform = `translate(${x}px, ${y}px)`;
     tooltipEl.style.opacity = "1";
   });
