@@ -135,6 +135,7 @@ worker.onmessage = (event: MessageEvent<WorkerToMainMessage>) => {
     case "COMPLETE":
       updateStatus(`Done. Total compared: ${msg.payload.totalCompared}`, "success");
       compareBtn.disabled = false;
+      clearBtn.disabled = false;
       isProcessing = false;
 
       break;
@@ -142,6 +143,7 @@ worker.onmessage = (event: MessageEvent<WorkerToMainMessage>) => {
     case "ERROR":
       updateStatus(`Error: ${msg.payload.message}`, "error");
       compareBtn.disabled = false;
+      clearBtn.disabled = false;
       isProcessing = false;
 
       break;
@@ -165,6 +167,7 @@ compareBtn.addEventListener("click", () => {
   }
 
   compareBtn.disabled = true;
+  clearBtn.disabled = true;
   isProcessing = true;
   updateStatus("Comparing files...", "processing");
   const selectedFiles = Array.from(files.values());
