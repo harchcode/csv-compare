@@ -699,17 +699,18 @@ if (bodyContentEl && tooltipEl) {
     
     const headerName = headers[c];
     const cell = currentRows[r][c];
+    const globalRowNumber = currentPage * PAGE_SIZE + 1 + r;
     
-    let html = `<div class="font-bold text-gray-700 mb-1 pb-1 border-b border-gray-200">${escapeHtml(headerName)}</div>`;
+    let html = `<div class="font-bold text-gray-700 mb-2 pb-1.5 border-b border-gray-200">${escapeHtml(headerName)} <span class="text-gray-400 font-normal ml-1">#${globalRowNumber}</span></div>`;
     
     if (typeof cell === "string") {
       const valText = cell === "" ? "(empty)" : escapeHtml(cell);
       const valClass = cell === "" ? "text-gray-400 italic" : "text-gray-800";
       
-      html += `<div class="flex items-center gap-2 mb-1">
+      html += `<div class="flex items-center gap-2 mb-1.5 mt-1">
          <span class="px-1.5 py-0.5 rounded text-[10px] font-bold border border-gray-200 bg-gray-100 text-gray-600">All Files</span>
       </div>`;
-      html += `<div class="${valClass} whitespace-pre-wrap">${valText}</div>`;
+      html += `<div class="${valClass} whitespace-pre-wrap leading-relaxed">${valText}</div>`;
     } else {
       const fileValues: { fileIndex: number; value: string }[] = [];
       for (const [value, fileIndexes] of Object.entries(cell)) {
@@ -727,12 +728,12 @@ if (bodyContentEl && tooltipEl) {
          const valClass = value === "" ? "text-gray-400 italic" : "text-gray-800";
          const fileName = allFiles[fileIndex]?.name || `F${fileIndex + 1}`;
          
-         html += `<div class="mt-1.5">`;
-         html += `<div class="flex items-center gap-1.5 mb-0.5">
+         html += `<div class="mb-3.5 last:mb-0 mt-1">`;
+         html += `<div class="flex items-center gap-1.5 mb-1.5">
             <span class="px-1 py-0.5 rounded text-[10px] font-bold border leading-none shrink-0 ${badgeClass}">F${fileIndex + 1}</span>
             <span class="text-gray-500 font-medium text-xs truncate max-w-[200px]">${escapeHtml(fileName)}</span>
          </div>`;
-         html += `<div class="${valClass} pl-0.5 whitespace-pre-wrap">${valText}</div>`;
+         html += `<div class="${valClass} pl-0.5 whitespace-pre-wrap leading-relaxed">${valText}</div>`;
          html += `</div>`;
       }
     }
