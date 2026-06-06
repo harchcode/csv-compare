@@ -12,6 +12,7 @@ const fileInput = document.getElementById("file-input") as HTMLInputElement;
 const fileList = document.getElementById("file-list") as HTMLUListElement;
 
 const compareBtn = document.getElementById("compareBtn") as HTMLButtonElement;
+const clearBtn = document.getElementById("clearBtn") as HTMLButtonElement;
 const statusEl = document.getElementById("status") as HTMLElement;
 const statusDotEl = document.getElementById("status-dot") as HTMLElement;
 
@@ -22,9 +23,10 @@ const nextBtn = document.getElementById("next-btn") as HTMLButtonElement;
 const lastBtn = document.getElementById("last-btn") as HTMLButtonElement;
 const pageInput = document.getElementById("page-input") as HTMLInputElement;
 const totalPagesSpan = document.getElementById("total-pages") as HTMLElement;
+const pageSizeSelect = document.getElementById("page-size-select") as HTMLSelectElement;
 const rowInfoEl = document.getElementById("row-info") as HTMLElement;
 
-const PAGE_SIZE = 200;
+let PAGE_SIZE = 50;
 
 const files = new Map<string, File>();
 let currentPage = 0;
@@ -46,6 +48,7 @@ async function clearDB() {
 }
 
 async function initUI() {
+  PAGE_SIZE = parseInt(pageSizeSelect.value, 10) || 50;
   const meta = await getMeta();
 
   if (!meta) {
@@ -239,34 +242,38 @@ function renderLegend(fileNames: string[] | undefined) {
   });
 }
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 function renderRows(rows: DiffRow[]) {
   const tbody = document.querySelector("#diff-table tbody")!;
-  tbody.replaceChildren();
-
   const startRowNumber = currentPage * PAGE_SIZE + 1;
+  const htmlParts: string[] = [];
 
   rows.forEach((row, rowIndex) => {
-    const tr = document.createElement("tr");
+    htmlParts.push("<tr>");
 
     // Row number cell
-    const tdNum = document.createElement("td");
-    tdNum.className =
-      "border px-2 py-1 text-sm text-center text-gray-600 font-mono bg-gray-100 select-none w-12";
-    tdNum.textContent = String(startRowNumber + rowIndex);
-    tr.appendChild(tdNum);
+    htmlParts.push(
+      `<td class="border px-2 py-1 text-sm text-center text-gray-600 font-mono bg-gray-100 select-none w-12">${startRowNumber + rowIndex}</td>`
+    );
 
     for (const cell of row) {
-      const td = document.createElement("td");
-
       if (typeof cell === "string") {
-        td.className = "border px-2 py-1 text-sm max-w-[240px] truncate";
-        td.textContent = cell;
+        htmlParts.push(
+          `<td class="border px-2 py-1 text-sm max-w-[240px] truncate">${escapeHtml(cell)}</td>`
+        );
       } else {
-        td.className =
-          "border px-2 py-1 text-sm max-w-[240px] bg-amber-50 align-top";
-
-        const container = document.createElement("div");
-        container.className = "flex flex-col gap-1 py-0.5";
+        htmlParts.push(
+          `<td class="border px-2 py-1 text-sm max-w-[240px] bg-amber-50 align-top">`
+        );
+        htmlParts.push(`<div class="flex flex-col gap-1 py-0.5">`);
 
         const fileValues: { fileIndex: number; value: string }[] = [];
         for (const [value, fileIndexes] of Object.entries(cell)) {
@@ -277,33 +284,25 @@ function renderRows(rows: DiffRow[]) {
         fileValues.sort((a, b) => a.fileIndex - b.fileIndex);
 
         for (const { fileIndex, value } of fileValues) {
-          const rowDiv = document.createElement("div");
-          rowDiv.className = "flex items-center gap-1.5 text-xs min-w-0";
+          const badgeClass = getFileBadgeClass(fileIndex);
+          const valText = value === "" ? "(empty)" : escapeHtml(value);
+          const valClass = value === "" ? "truncate text-gray-400 italic" : "truncate";
 
-          const badge = document.createElement("span");
-          badge.className = `px-1 py-0.5 rounded text-[10px] font-bold border leading-none shrink-0 ${getFileBadgeClass(fileIndex)}`;
-          badge.textContent = `F${fileIndex + 1}`;
-
-          const valSpan = document.createElement("span");
-          valSpan.className = "truncate";
-          valSpan.textContent = value === "" ? "(empty)" : value;
-          if (value === "") {
-            valSpan.className += " text-gray-400 italic";
-          }
-
-          rowDiv.appendChild(badge);
-          rowDiv.appendChild(valSpan);
-          container.appendChild(rowDiv);
+          htmlParts.push(
+            `<div class="flex items-center gap-1.5 text-xs min-w-0">` +
+              `<span class="px-1 py-0.5 rounded text-[10px] font-bold border leading-none shrink-0 ${badgeClass}">F${fileIndex + 1}</span>` +
+              `<span class="${valClass}">${valText}</span>` +
+            `</div>`
+          );
         }
 
-        td.appendChild(container);
+        htmlParts.push(`</div></td>`);
       }
-
-      tr.appendChild(td);
     }
-
-    tbody.appendChild(tr);
+    htmlParts.push("</tr>");
   });
+
+  tbody.innerHTML = htmlParts.join("");
 }
 
 async function getMeta() {
@@ -425,6 +424,17 @@ function setupPagination() {
       pageInput.value = String(currentPage + 1);
     }
   });
+
+  pageSizeSelect.addEventListener("change", () => {
+    PAGE_SIZE = parseInt(pageSizeSelect.value, 10) || 50;
+    totalPages = Math.ceil(totalRows / PAGE_SIZE);
+    
+    if (currentPage >= totalPages) {
+      currentPage = Math.max(0, totalPages - 1);
+    }
+    
+    loadPageAndUpdatePaginationUI(currentPage);
+  });
 }
 
 function fileId(file: File) {
@@ -491,5 +501,31 @@ window.addEventListener("beforeunload", event => {
   if (isProcessing) {
     event.preventDefault();
     return "";
+  }
+});
+
+clearBtn.addEventListener("click", async () => {
+  if (isProcessing) {
+    alert("Cannot clear results while comparison is in progress.");
+    return;
+  }
+  
+  if (confirm("Are you sure you want to clear all compared results?")) {
+    await clearDB();
+    
+    // Reset state variables
+    currentPage = 0;
+    totalRows = 0;
+    totalPages = 0;
+    headers = [];
+    files.clear();
+    
+    // Reset status and UI
+    updateStatus("Data cleared.", "ready");
+    renderLegend(undefined);
+    renderHeaders([]);
+    renderRows([]);
+    renderFiles();
+    updatePaginationUI();
   }
 });

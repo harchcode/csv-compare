@@ -52,16 +52,25 @@
           Start comparison
         </button>
         <div class="flex items-center gap-2 text-sm text-gray-600 font-medium">
-          <span id="status-dot" class="w-2.5 h-2.5 rounded-full bg-gray-300 transition-all duration-300"></span>
+          <span
+            id="status-dot"
+            class="w-2.5 h-2.5 rounded-full bg-gray-300 transition-all duration-300"
+          ></span>
           <span id="status" class="whitespace-pre-wrap">Worker ready.</span>
         </div>
+        <button
+          id="clearBtn"
+          class="px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50 hover:text-gray-900 rounded transition-colors ml-auto cursor-pointer"
+        >
+          Clear results
+        </button>
       </div>
 
       <!-- Legend -->
       <div id="diff-legend" class="mb-4 flex flex-wrap gap-3 rounded"></div>
 
       <!-- Table -->
-      <div class="border bg-white">
+      <div class="border bg-white overflow-auto">
         <table
           id="diff-table"
           class="min-w-full text-sm border-collapse"
@@ -73,15 +82,27 @@
         id="pagination"
         class="sticky bottom-0 bg-gray-50 border-t py-3 -mt-0.5 shadow-sm"
       >
-        <div class="max-w-6xl mx-auto px-6 flex items-center justify-between flex-wrap gap-4">
+        <div
+          class="max-w-6xl mx-auto px-6 flex items-center justify-between flex-wrap gap-4"
+        >
           <div class="flex items-center gap-2">
             <button
               id="first-btn"
               class="p-2 border rounded bg-white hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-white disabled:cursor-not-allowed transition-colors flex items-center justify-center text-gray-700"
               aria-label="First page"
             >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M18.75 19.5l-7.5-7.5 7.5-7.5m-6 15L5.25 12l7.5-7.5" />
+              <svg
+                class="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                stroke-width="2"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M18.75 19.5l-7.5-7.5 7.5-7.5m-6 15L5.25 12l7.5-7.5"
+                />
               </svg>
             </button>
             <button
@@ -89,12 +110,24 @@
               class="p-2 border rounded bg-white hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-white disabled:cursor-not-allowed transition-colors flex items-center justify-center text-gray-700"
               aria-label="Previous page"
             >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+              <svg
+                class="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                stroke-width="2"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M15.75 19.5L8.25 12l7.5-7.5"
+                />
               </svg>
             </button>
 
-            <div class="flex items-center gap-1.5 text-sm text-gray-600 font-medium px-2">
+            <div
+              class="flex items-center gap-1.5 text-sm text-gray-600 font-medium px-2"
+            >
               <span>Page</span>
               <input
                 id="page-input"
@@ -112,8 +145,18 @@
               class="p-2 border rounded bg-white hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-white disabled:cursor-not-allowed transition-colors flex items-center justify-center text-gray-700"
               aria-label="Next page"
             >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+              <svg
+                class="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                stroke-width="2"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M8.25 4.5l7.5 7.5-7.5 7.5"
+                />
               </svg>
             </button>
             <button
@@ -121,10 +164,34 @@
               class="p-2 border rounded bg-white hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-white disabled:cursor-not-allowed transition-colors flex items-center justify-center text-gray-700"
               aria-label="Last page"
             >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M11.25 4.5l7.5 7.5-7.5 7.5m-6-15l7.5 7.5-7.5 7.5" />
+              <svg
+                class="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                stroke-width="2"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M11.25 4.5l7.5 7.5-7.5 7.5m-6-15l7.5 7.5-7.5 7.5"
+                />
               </svg>
             </button>
+
+            <div class="flex items-center gap-1.5 text-sm text-gray-600 font-medium border-l pl-4 ml-2">
+              <span>Rows per page:</span>
+              <select
+                id="page-size-select"
+                class="px-1.5 py-0.5 border rounded bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm font-medium cursor-pointer"
+              >
+                <option value="10">10</option>
+                <option value="20">20</option>
+                <option value="50" selected>50</option>
+                <option value="100">100</option>
+                <option value="200">200</option>
+              </select>
+            </div>
           </div>
 
           <div id="row-info" class="text-sm text-gray-500 font-medium"></div>
