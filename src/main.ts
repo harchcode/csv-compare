@@ -496,7 +496,7 @@ function updatePaginationUI() {
   lastBtn.disabled = currentPage >= totalPages - 1;
 
   if (totalRows > 0) {
-    rowInfoEl.textContent = `Total compared: ${totalRows.toLocaleString()} rows`;
+    rowInfoEl.innerHTML = `<span class="hidden sm:inline">Total compared: </span>${totalRows.toLocaleString()} rows`;
   } else {
     rowInfoEl.textContent = "";
   }
