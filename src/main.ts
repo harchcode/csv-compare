@@ -407,13 +407,13 @@ function renderVirtualGrid() {
 
       if (typeof cell === "string") {
         bodyParts.push(
-          `<div class="absolute border-b border-r px-2 py-1 text-sm overflow-hidden flex items-start bg-white" style="top: ${top}px; left: ${left}px; width: ${COL_WIDTH}px; height: ${height}px;">` +
-            `<div class="truncate w-full pt-1" title="${escapeHtml(cell)}">${escapeHtml(cell)}</div>` +
+          `<div class="absolute border-b border-r px-2 py-1 text-sm overflow-hidden flex items-start bg-white" data-cell-row="${r}" data-cell-col="${c}" style="top: ${top}px; left: ${left}px; width: ${COL_WIDTH}px; height: ${height}px;">` +
+            `<div class="truncate w-full pt-1 pointer-events-none">${escapeHtml(cell)}</div>` +
             `</div>`
         );
       } else {
-        let cellHtml = `<div class="absolute border-b border-r px-2 py-1 text-sm overflow-hidden bg-amber-50" style="top: ${top}px; left: ${left}px; width: ${COL_WIDTH}px; height: ${height}px;">`;
-        cellHtml += `<div class="flex flex-col gap-1 py-0.5">`;
+        let cellHtml = `<div class="absolute border-b border-r px-2 py-1 text-sm overflow-hidden bg-amber-50" data-cell-row="${r}" data-cell-col="${c}" style="top: ${top}px; left: ${left}px; width: ${COL_WIDTH}px; height: ${height}px;">`;
+        cellHtml += `<div class="flex flex-col gap-1 py-0.5 pointer-events-none">`;
 
         const fileValues: { fileIndex: number; value: string }[] = [];
         for (const [value, fileIndexes] of Object.entries(cell)) {
@@ -429,7 +429,7 @@ function renderVirtualGrid() {
           const valClass =
             value === "" ? "truncate text-gray-400 italic" : "truncate";
 
-          cellHtml += `<div class="flex items-center gap-1.5 text-xs min-w-0" title="${escapeHtml(value)}">
+          cellHtml += `<div class="flex items-center gap-1.5 text-xs min-w-0">
             <span class="px-1 py-0.5 rounded text-[10px] font-bold border leading-none shrink-0 ${badgeClass}">F${fileIndex + 1}</span>
             <span class="${valClass}">${valText}</span>
           </div>`;
@@ -667,3 +667,90 @@ clearBtn.addEventListener("click", async () => {
     updatePaginationUI();
   }
 });
+
+// Custom Tooltip Logic
+const tooltipEl = document.getElementById("custom-tooltip");
+const bodyContentEl = document.getElementById("diff-body-content");
+
+function hideTooltip() {
+  if (tooltipEl) {
+    tooltipEl.style.opacity = "0";
+  }
+}
+
+if (bodyContentEl && tooltipEl) {
+  bodyContentEl.addEventListener("mouseleave", hideTooltip);
+  
+  bodyContentEl.addEventListener("mousemove", (e) => {
+    const target = e.target as HTMLElement;
+    const cellEl = target.closest('[data-cell-row]');
+    if (!cellEl) {
+      hideTooltip();
+      return;
+    }
+    
+    const r = parseInt(cellEl.getAttribute("data-cell-row") || "", 10);
+    const c = parseInt(cellEl.getAttribute("data-cell-col") || "", 10);
+    
+    if (isNaN(r) || isNaN(c) || !currentRows[r]) {
+      hideTooltip();
+      return;
+    }
+    
+    const headerName = headers[c];
+    const cell = currentRows[r][c];
+    
+    let html = `<div class="font-bold text-gray-700 mb-1 pb-1 border-b border-gray-200">${escapeHtml(headerName)}</div>`;
+    
+    if (typeof cell === "string") {
+      const valText = cell === "" ? "(empty)" : escapeHtml(cell);
+      const valClass = cell === "" ? "text-gray-400 italic" : "text-gray-800";
+      
+      html += `<div class="flex items-center gap-2 mb-1">
+         <span class="px-1.5 py-0.5 rounded text-[10px] font-bold border border-gray-200 bg-gray-100 text-gray-600">All Files</span>
+      </div>`;
+      html += `<div class="${valClass} whitespace-pre-wrap">${valText}</div>`;
+    } else {
+      const fileValues: { fileIndex: number; value: string }[] = [];
+      for (const [value, fileIndexes] of Object.entries(cell)) {
+        for (const fileIndex of fileIndexes as number[]) {
+          fileValues.push({ fileIndex, value });
+        }
+      }
+      fileValues.sort((a, b) => a.fileIndex - b.fileIndex);
+      
+      const allFiles = Array.from(files.values());
+      
+      for (const { fileIndex, value } of fileValues) {
+         const badgeClass = getFileBadgeClass(fileIndex);
+         const valText = value === "" ? "(empty)" : escapeHtml(value);
+         const valClass = value === "" ? "text-gray-400 italic" : "text-gray-800";
+         const fileName = allFiles[fileIndex]?.name || `F${fileIndex + 1}`;
+         
+         html += `<div class="mt-1.5">`;
+         html += `<div class="flex items-center gap-1.5 mb-0.5">
+            <span class="px-1 py-0.5 rounded text-[10px] font-bold border leading-none shrink-0 ${badgeClass}">F${fileIndex + 1}</span>
+            <span class="text-gray-500 font-medium text-xs truncate max-w-[200px]">${escapeHtml(fileName)}</span>
+         </div>`;
+         html += `<div class="${valClass} pl-0.5 whitespace-pre-wrap">${valText}</div>`;
+         html += `</div>`;
+      }
+    }
+    
+    tooltipEl.innerHTML = html;
+    
+    let x = e.clientX + 15;
+    let y = e.clientY + 15;
+    
+    const rect = tooltipEl.getBoundingClientRect();
+    if (x + rect.width > window.innerWidth) {
+      x = e.clientX - rect.width - 15;
+    }
+    if (y + rect.height > window.innerHeight) {
+      y = e.clientY - rect.height - 15;
+    }
+    
+    tooltipEl.style.transform = `translate(${x}px, ${y}px)`;
+    tooltipEl.style.opacity = "1";
+  });
+}
