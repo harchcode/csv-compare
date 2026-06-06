@@ -8,7 +8,7 @@ import type {
 } from "./types";
 import { openDB } from "./utils";
 
-const ROW_BATCH_SIZE = 2048;
+const BATCH_SIZE_BYTES = 512 * 1024; // 256KB batch size
 
 let db: IDBDatabase | null = null;
 
@@ -106,11 +106,11 @@ async function* streamRows(file: File) {
             state = "QUOTED";
             i++;
             charsInCurrentRow++;
-          } else if (c === ',') {
+          } else if (c === ",") {
             currentRow.push("");
             i++;
             charsInCurrentRow++;
-          } else if (c === '\n') {
+          } else if (c === "\n") {
             currentRow.push("");
             i++;
             charsInCurrentRow++;
@@ -118,12 +118,12 @@ async function* streamRows(file: File) {
             currentRow = [];
             charsInCurrentRow = 0;
             consumedCount = i;
-          } else if (c === '\r') {
+          } else if (c === "\r") {
             currentRow.push("");
             i++;
             charsInCurrentRow++;
             if (i < buffer.length) {
-              if (buffer[i] === '\n') {
+              if (buffer[i] === "\n") {
                 i++;
                 charsInCurrentRow++;
               }
@@ -177,14 +177,15 @@ async function* streamRows(file: File) {
             i++;
             charsInCurrentRow++;
           }
-        } else { // UNQUOTED
-          if (c === ',') {
+        } else {
+          // UNQUOTED
+          if (c === ",") {
             currentRow.push(currentField);
             currentField = "";
             state = "START";
             i++;
             charsInCurrentRow++;
-          } else if (c === '\n') {
+          } else if (c === "\n") {
             currentRow.push(currentField);
             currentField = "";
             state = "START";
@@ -194,14 +195,14 @@ async function* streamRows(file: File) {
             currentRow = [];
             charsInCurrentRow = 0;
             consumedCount = i;
-          } else if (c === '\r') {
+          } else if (c === "\r") {
             currentRow.push(currentField);
             currentField = "";
             state = "START";
             i++;
             charsInCurrentRow++;
             if (i < buffer.length) {
-              if (buffer[i] === '\n') {
+              if (buffer[i] === "\n") {
                 i++;
                 charsInCurrentRow++;
               }
@@ -346,9 +347,7 @@ async function compareFiles(files: File[]) {
   const fileSizes = files.map(f => f.size);
   const bytesRead = new Array(files.length).fill(0);
 
-  const iterators = files.map(file =>
-    streamRows(file)[Symbol.asyncIterator]()
-  );
+  const iterators = files.map(file => streamRows(file)[Symbol.asyncIterator]());
 
   // --- read headers ---
   const headers: string[][] = [];
@@ -394,6 +393,7 @@ async function compareFiles(files: File[]) {
   const rows: string[][] = new Array(files.length);
 
   const baseBatch: DiffRow[] = [];
+  let currentBatchBytes = 0;
 
   // --- streaming loop ---
   while (true) {
@@ -405,36 +405,25 @@ async function compareFiles(files: File[]) {
       break;
     }
 
+    let rowBytes = 0;
     for (let i = 0; i < nextRows.length; i++) {
       const item = nextRows[i].value as { row: string[]; rawLength: number };
       rows[i] = item.row;
 
       // TODO: this is not accurate for string containing multi-byte characters.
       bytesRead[i] += item.rawLength;
+      rowBytes += item.rawLength;
     }
 
     // --- build base row ---
     const baseRow = buildRow(rows, columnIndexesPerFile);
 
-    // console.log("STORE baseRow:", rowIndex, baseRow);
     baseBatch.push(baseRow);
-
-    // --- build diff record ---
-    // const diffRecord = buildDiffRecord(
-    //   rowIndex,
-    //   rows,
-    //   columnMaps,
-    //   commonColumns
-    // );
-
-    // if (diffRecord) {
-    //   // console.log("STORE diffRow:", diffRecord);
-    //   diffBatch.push(diffRecord);
-    // }
+    currentBatchBytes += rowBytes;
 
     rowIndex++;
 
-    if (baseBatch.length >= ROW_BATCH_SIZE) {
+    if (currentBatchBytes >= BATCH_SIZE_BYTES) {
       await flushBatch(rowIndex, baseBatch);
 
       // send progress update
@@ -446,6 +435,8 @@ async function compareFiles(files: File[]) {
       };
 
       self.postMessage(msg);
+
+      currentBatchBytes = 0;
     }
   }
 
