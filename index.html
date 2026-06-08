@@ -54,7 +54,9 @@
         >
           Start comparison
         </button>
-        <div class="flex items-center gap-2 text-sm text-gray-600 font-medium ml-auto sm:ml-0">
+        <div
+          class="flex items-center gap-2 text-sm text-gray-600 font-medium ml-auto sm:ml-0"
+        >
           <span
             id="status-dot"
             class="w-2.5 h-2.5 rounded-full bg-gray-300 transition-all duration-300"
@@ -94,8 +96,18 @@
               class="p-2 border rounded bg-white hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-white disabled:cursor-not-allowed transition-colors flex items-center justify-center text-gray-700"
               aria-label="First page"
             >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M18.75 19.5l-7.5-7.5 7.5-7.5m-6 15L5.25 12l7.5-7.5" />
+              <svg
+                class="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                stroke-width="2"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M18.75 19.5l-7.5-7.5 7.5-7.5m-6 15L5.25 12l7.5-7.5"
+                />
               </svg>
             </button>
             <button
@@ -103,12 +115,24 @@
               class="p-2 border rounded bg-white hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-white disabled:cursor-not-allowed transition-colors flex items-center justify-center text-gray-700"
               aria-label="Previous page"
             >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+              <svg
+                class="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                stroke-width="2"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M15.75 19.5L8.25 12l7.5-7.5"
+                />
               </svg>
             </button>
 
-            <div class="flex items-center gap-1.5 text-sm text-gray-600 font-medium px-2">
+            <div
+              class="flex items-center gap-1.5 text-sm text-gray-600 font-medium px-2"
+            >
               <span>Page</span>
               <input
                 id="page-input"
@@ -126,8 +150,18 @@
               class="p-2 border rounded bg-white hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-white disabled:cursor-not-allowed transition-colors flex items-center justify-center text-gray-700"
               aria-label="Next page"
             >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+              <svg
+                class="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                stroke-width="2"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M8.25 4.5l7.5 7.5-7.5 7.5"
+                />
               </svg>
             </button>
             <button
@@ -135,14 +169,28 @@
               class="p-2 border rounded bg-white hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-white disabled:cursor-not-allowed transition-colors flex items-center justify-center text-gray-700"
               aria-label="Last page"
             >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M11.25 4.5l7.5 7.5-7.5 7.5m-6-15l7.5 7.5-7.5 7.5" />
+              <svg
+                class="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                stroke-width="2"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M11.25 4.5l7.5 7.5-7.5 7.5m-6-15l7.5 7.5-7.5 7.5"
+                />
               </svg>
             </button>
           </div>
 
-          <div class="flex items-center justify-between w-full sm:flex-1 sm:ml-4 gap-4 pt-2 sm:pt-0 border-t sm:border-t-0 border-gray-200">
-            <div class="flex items-center gap-1.5 text-sm text-gray-600 font-medium sm:border-l sm:pl-4">
+          <div
+            class="flex items-center justify-between w-full sm:flex-1 sm:ml-4 gap-4 pt-2 sm:pt-0 border-t sm:border-t-0 border-gray-200"
+          >
+            <div
+              class="flex items-center gap-1.5 text-sm text-gray-600 font-medium sm:border-l sm:pl-4"
+            >
               <span>Rows per page:</span>
               <select
                 id="page-size-select"
@@ -155,7 +203,7 @@
                 <option value="200">200</option>
               </select>
             </div>
-            
+
             <div id="row-info" class="text-sm text-gray-500 font-medium"></div>
           </div>
         </div>
