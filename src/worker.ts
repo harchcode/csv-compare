@@ -8,7 +8,7 @@ import type {
 } from "./types";
 import { openDB } from "./utils";
 
-const ROW_BATCH_SIZE = 2000;
+const BATCH_SIZE_BYTES = 512 * 1024; // 256KB batch size
 
 let db: IDBDatabase | null = null;
 
@@ -20,7 +20,7 @@ self.onmessage = async (event: MessageEvent<MainToWorkerMessage>) => {
   try {
     switch (msg.type) {
       case "INIT":
-        handleInit(msg.payload);
+        handleInit();
         break;
 
       case "START":
@@ -35,7 +35,7 @@ self.onmessage = async (event: MessageEvent<MainToWorkerMessage>) => {
   }
 };
 
-async function handleInit(payload: { mode: "CSV_DIFF" }) {
+async function handleInit() {
   try {
     db = await openDB();
 
@@ -69,30 +69,174 @@ async function handleStart(files: File[]) {
   self.postMessage(msg);
 }
 
-async function* streamLines(file: File) {
+async function* streamRows(file: File) {
   const reader = file.stream().pipeThrough(new TextDecoderStream()).getReader();
 
   let buffer = "";
+  let state: "START" | "QUOTED" | "UNQUOTED" = "START";
+  let currentRow: string[] = [];
+  let currentField = "";
+  let charsInCurrentRow = 0;
 
   try {
     while (true) {
       const { value, done } = await reader.read();
 
-      if (done) break;
-
-      buffer += value;
-
-      let newlineIndex;
-      while ((newlineIndex = buffer.indexOf("\n")) >= 0) {
-        const line = buffer.slice(0, newlineIndex);
-        buffer = buffer.slice(newlineIndex + 1);
-        yield line;
+      if (done) {
+        if (buffer.length > 0) {
+          // If the buffer doesn't end with a newline, append one to flush the last row
+          if (!buffer.endsWith("\n") && !buffer.endsWith("\r")) {
+            buffer += "\n";
+          }
+        } else {
+          break;
+        }
+      } else {
+        buffer += value;
       }
-    }
 
-    // Emit remaining buffer as last line
-    if (buffer.length > 0) {
-      yield buffer;
+      let i = 0;
+      let consumedCount = 0;
+
+      while (i < buffer.length) {
+        const c = buffer[i];
+
+        if (state === "START") {
+          if (c === '"') {
+            state = "QUOTED";
+            i++;
+            charsInCurrentRow++;
+          } else if (c === ",") {
+            currentRow.push("");
+            i++;
+            charsInCurrentRow++;
+          } else if (c === "\n") {
+            currentRow.push("");
+            i++;
+            charsInCurrentRow++;
+            yield { row: currentRow, rawLength: charsInCurrentRow };
+            currentRow = [];
+            charsInCurrentRow = 0;
+            consumedCount = i;
+          } else if (c === "\r") {
+            currentRow.push("");
+            i++;
+            charsInCurrentRow++;
+            if (i < buffer.length) {
+              if (buffer[i] === "\n") {
+                i++;
+                charsInCurrentRow++;
+              }
+              yield { row: currentRow, rawLength: charsInCurrentRow };
+              currentRow = [];
+              charsInCurrentRow = 0;
+              consumedCount = i;
+            } else {
+              if (done) {
+                yield { row: currentRow, rawLength: charsInCurrentRow };
+                currentRow = [];
+                charsInCurrentRow = 0;
+                consumedCount = i;
+              } else {
+                // Wait for the next chunk to see if it's \n
+                i--;
+                charsInCurrentRow--;
+                break;
+              }
+            }
+          } else {
+            currentField += c;
+            state = "UNQUOTED";
+            i++;
+            charsInCurrentRow++;
+          }
+        } else if (state === "QUOTED") {
+          if (c === '"') {
+            if (i + 1 < buffer.length) {
+              if (buffer[i + 1] === '"') {
+                currentField += '"';
+                i += 2;
+                charsInCurrentRow += 2;
+              } else {
+                state = "UNQUOTED";
+                i++;
+                charsInCurrentRow++;
+              }
+            } else {
+              if (done) {
+                state = "UNQUOTED";
+                i++;
+                charsInCurrentRow++;
+              } else {
+                // Wait for next chunk to determine if it's an escaped quote
+                break;
+              }
+            }
+          } else {
+            currentField += c;
+            i++;
+            charsInCurrentRow++;
+          }
+        } else {
+          // UNQUOTED
+          if (c === ",") {
+            currentRow.push(currentField);
+            currentField = "";
+            state = "START";
+            i++;
+            charsInCurrentRow++;
+          } else if (c === "\n") {
+            currentRow.push(currentField);
+            currentField = "";
+            state = "START";
+            i++;
+            charsInCurrentRow++;
+            yield { row: currentRow, rawLength: charsInCurrentRow };
+            currentRow = [];
+            charsInCurrentRow = 0;
+            consumedCount = i;
+          } else if (c === "\r") {
+            currentRow.push(currentField);
+            currentField = "";
+            state = "START";
+            i++;
+            charsInCurrentRow++;
+            if (i < buffer.length) {
+              if (buffer[i] === "\n") {
+                i++;
+                charsInCurrentRow++;
+              }
+              yield { row: currentRow, rawLength: charsInCurrentRow };
+              currentRow = [];
+              charsInCurrentRow = 0;
+              consumedCount = i;
+            } else {
+              if (done) {
+                yield { row: currentRow, rawLength: charsInCurrentRow };
+                currentRow = [];
+                charsInCurrentRow = 0;
+                consumedCount = i;
+              } else {
+                i--;
+                charsInCurrentRow--;
+                break;
+              }
+            }
+          } else {
+            currentField += c;
+            i++;
+            charsInCurrentRow++;
+          }
+        }
+      }
+
+      if (consumedCount > 0) {
+        buffer = buffer.slice(consumedCount);
+      }
+
+      if (done && buffer.length === 0) {
+        break;
+      }
     }
   } finally {
     reader.releaseLock();
@@ -195,24 +339,31 @@ async function compareFiles(files: File[]) {
 
   await waitTx(tx);
 
+  self.postMessage({
+    type: "PROGRESS",
+    payload: { processedRows: 0, progress: 0 }
+  });
+
   const fileSizes = files.map(f => f.size);
   const bytesRead = new Array(files.length).fill(0);
 
-  const iterators = files.map(file =>
-    streamLines(file)[Symbol.asyncIterator]()
-  );
+  const iterators = files.map(file => streamRows(file)[Symbol.asyncIterator]());
 
   // --- read headers ---
   const headers: string[][] = [];
 
-  for (const it of iterators) {
+  for (let i = 0; i < iterators.length; i++) {
+    const it = iterators[i];
     const { value, done } = await it.next();
 
-    if (done) {
+    if (done || !value) {
       throw new Error("File has no header row");
     }
 
-    headers.push(value.split(","));
+    headers.push(value.row);
+
+    // TODO: this is not accurate for string containing multi-byte characters.
+    bytesRead[i] += value.rawLength;
   }
 
   console.log("headers:", headers);
@@ -224,6 +375,15 @@ async function compareFiles(files: File[]) {
 
   // --- find common columns ---
   const commonColumns = getCommonColumns(headers);
+
+  // send progress update
+  const headerProgress = Math.max(...bytesRead.map((b, i) => b / fileSizes[i]));
+
+  self.postMessage({
+    type: "HEADER",
+    payload: { headers: commonColumns, progress: headerProgress }
+  });
+
   const columnIndexesPerFile = buildColumnIndexes(commonColumns, columnMaps);
 
   console.log("commonColumns:", commonColumns);
@@ -233,46 +393,37 @@ async function compareFiles(files: File[]) {
   const rows: string[][] = new Array(files.length);
 
   const baseBatch: DiffRow[] = [];
+  let currentBatchBytes = 0;
 
   // --- streaming loop ---
   while (true) {
     const nextRows = await Promise.all(iterators.map(it => it.next()));
 
     // stop when any file ends
-    if (nextRows.some(r => r.done)) {
+    if (nextRows.some(r => r.done || !r.value)) {
       console.log("stream ended");
       break;
     }
 
+    let rowBytes = 0;
     for (let i = 0; i < nextRows.length; i++) {
-      // TODO: modify to handle quoted CSV values with commas, newlines, etc.
-      const value = nextRows[i].value as string;
-      rows[i] = value.split(",");
-      bytesRead[i] += value.length;
+      const item = nextRows[i].value as { row: string[]; rawLength: number };
+      rows[i] = item.row;
+
+      // TODO: this is not accurate for string containing multi-byte characters.
+      bytesRead[i] += item.rawLength;
+      rowBytes += item.rawLength;
     }
 
     // --- build base row ---
     const baseRow = buildRow(rows, columnIndexesPerFile);
 
-    // console.log("STORE baseRow:", rowIndex, baseRow);
     baseBatch.push(baseRow);
-
-    // --- build diff record ---
-    // const diffRecord = buildDiffRecord(
-    //   rowIndex,
-    //   rows,
-    //   columnMaps,
-    //   commonColumns
-    // );
-
-    // if (diffRecord) {
-    //   // console.log("STORE diffRow:", diffRecord);
-    //   diffBatch.push(diffRecord);
-    // }
+    currentBatchBytes += rowBytes;
 
     rowIndex++;
 
-    if (baseBatch.length >= ROW_BATCH_SIZE) {
+    if (currentBatchBytes >= BATCH_SIZE_BYTES) {
       await flushBatch(rowIndex, baseBatch);
 
       // send progress update
@@ -284,6 +435,8 @@ async function compareFiles(files: File[]) {
       };
 
       self.postMessage(msg);
+
+      currentBatchBytes = 0;
     }
   }
 
@@ -308,7 +461,8 @@ async function compareFiles(files: File[]) {
   const meta = {
     fileCount: files.length,
     commonColumns,
-    comparedRows: rowIndex
+    comparedRows: rowIndex,
+    fileNames: files.map(f => f.name)
   };
 
   metaStore.put(meta, "session");

@@ -14,6 +14,7 @@ export type MainToWorkerMessage =
 
 export type WorkerToMainMessage =
   | { type: "READY" }
+  | { type: "HEADER"; payload: { headers: string[]; progress: number } }
   | { type: "PROGRESS"; payload: { processedRows: number; progress: number } }
   | { type: "COMPLETE"; payload: { totalCompared: number } }
   | { type: "ERROR"; payload: { message: string } };
@@ -26,6 +27,7 @@ export type DiffMeta = {
   fileCount: number;
   commonColumns: string[];
   comparedRows: number;
+  fileNames?: string[];
 };
 
 export type ColumnIndexMap = Record<string, number>;

@@ -2,28 +2,38 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 
-const OUTPUT_FILE_NAME = "med2.csv";
-const TARGET_SIZE_MB = 5;
+const OUTPUT_FILE_NAME = "med9.csv";
+const TARGET_SIZE_MB = 20;
 const TARGET_SIZE_BYTES = TARGET_SIZE_MB * 1024 * 1024;
+const COLUMNS = 1000;
 
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __dirname = path.join(path.dirname(__filename), "out");
 
 const OUTPUT_PATH = path.join(__dirname, OUTPUT_FILE_NAME);
 
+fs.mkdirSync(path.dirname(OUTPUT_PATH), { recursive: true });
 const stream = fs.createWriteStream(OUTPUT_PATH);
 
 let bytesWritten = 0;
 let rowIndex = 0;
 
-const header = "id,name,email,amount,status\n";
+let header = "id";
+for (let i = 1; i <= COLUMNS; i++) {
+  header += `,col${i}`;
+}
+header += "\n";
 stream.write(header);
 bytesWritten += Buffer.byteLength(header);
 
 function generateRow(i: number): string {
-  return `${i},User_${i},user_${i}@example.com,${(Math.random() * 1000).toFixed(
-    2
-  )},${Math.random() > 0.5 ? "ACTIVE" : "INACTIVE"}\n`;
+  let row = `${i}`;
+  for (let j = 1; j <= COLUMNS; j++) {
+    row += `,${Math.random().toString(36).substring(2, 7)}`;
+  }
+  row += "\n";
+
+  return row;
 }
 
 function writeChunk(): void {
